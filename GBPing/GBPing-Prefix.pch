@@ -1,0 +1,7 @@
+//
+// Prefix header for all source files of the 'GBPing' target in the 'GBPing' project
+//
+
+#ifdef __OBJC__
+    #import <Foundation/Foundation.h>
+#endif
