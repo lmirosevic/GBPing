@@ -20,7 +20,7 @@
 @property (copy, nonatomic) NSString                *host;
 @property (assign, nonatomic) NSTimeInterval        pingPeriod;
 @property (assign, nonatomic) NSTimeInterval        timeout;
-@property (assign, nonatomic) NSUInteger            packetSize;
+@property (assign, nonatomic) NSUInteger            payloadSize;
 @property (assign, nonatomic) NSUInteger            ttl;
 @property (assign, nonatomic, readonly) BOOL        isPinging;
 

@@ -28,7 +28,7 @@
 
 @implementation GBPing
 
-@synthesize packetSize = _packetSize;
+@synthesize payloadSize = _packetSize;
 @synthesize ttl = _ttl;
 @synthesize timeout = _timeout;
 
@@ -72,7 +72,7 @@
     }
 }
 
--(void)setPacketSize:(NSUInteger)packetSize {
+-(void)setPayloadSize:(NSUInteger)packetSize {
     _packetSize = packetSize;
     
     if (self.isPinging) {
@@ -80,7 +80,7 @@
     }
 }
 
--(NSUInteger)packetSize {
+-(NSUInteger)payloadSize {
     if (!_packetSize) {
         return kDefaultPacketSize;
     }
@@ -161,7 +161,7 @@
 #pragma mark - ping tick
 
 -(void)pingTick {
-    [self.simplePing sendPingWithData:[self generateDataWithLength:(self.packetSize-8)]];
+    [self.simplePing sendPingWithData:[self generateDataWithLength:(self.payloadSize-8)]];
     
     self.nextSequenceNumber += 1;
 }
@@ -187,7 +187,7 @@
     newPingSummary.receiveDate = [NSDate date];
     newPingSummary.sequenceNumber = self.nextSequenceNumber;
     newPingSummary.ttl = self.ttl;
-    newPingSummary.packetSize = self.packetSize;
+    newPingSummary.payloadSize = self.payloadSize;
     newPingSummary.status = GBPingStatusFail;
     
     [self.delegate ping:self didReceiveUnexpectedReplyWithSummary:newPingSummary fromHost:self.host];
@@ -219,7 +219,7 @@
     newPingSummary.sequenceNumber = self.nextSequenceNumber;
     newPingSummary.status = GBPingStatusPending;
     newPingSummary.ttl = self.ttl;
-    newPingSummary.packetSize = self.packetSize;
+    newPingSummary.payloadSize = self.payloadSize;
     
     //add it to pending pings
     self.pendingPings[@(self.nextSequenceNumber)] = newPingSummary;
