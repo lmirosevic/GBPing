@@ -6,7 +6,7 @@
 //  Copyright (c) 2012 Goonbee. All rights reserved.
 //
 
-#define kDefaultPacketSize 64
+#define kDefaultPayloadSize 56
 #define kDefaultTTL 49
 #define kDefaultPingPeriod 1
 #define kDefaultTimeout 2
@@ -28,7 +28,7 @@
 
 @implementation GBPing
 
-@synthesize payloadSize = _packetSize;
+@synthesize payloadSize = _payloadSize;
 @synthesize ttl = _ttl;
 @synthesize timeout = _timeout;
 
@@ -72,8 +72,8 @@
     }
 }
 
--(void)setPayloadSize:(NSUInteger)packetSize {
-    _packetSize = packetSize;
+-(void)setPayloadSize:(NSUInteger)payloadSize {
+    _payloadSize = payloadSize;
     
     if (self.isPinging) {
         [self restart];
@@ -81,11 +81,11 @@
 }
 
 -(NSUInteger)payloadSize {
-    if (!_packetSize) {
-        return kDefaultPacketSize;
+    if (!_payloadSize) {
+        return kDefaultPayloadSize;
     }
     else {
-        return _packetSize;
+        return _payloadSize;
     }
 }
 
@@ -161,7 +161,7 @@
 #pragma mark - ping tick
 
 -(void)pingTick {
-    [self.simplePing sendPingWithData:[self generateDataWithLength:(self.payloadSize-8)]];
+    [self.simplePing sendPingWithData:[self generateDataWithLength:(self.payloadSize)]];
     
     self.nextSequenceNumber += 1;
 }
