@@ -14,6 +14,14 @@
     return [self.receiveDate timeIntervalSinceDate:self.sendDate];
 }
 
+-(id)init {
+    if (self = [super init]) {
+        self.status = GBPingStatusPending;
+    }
+    
+    return self;
+}
+
 -(void)dealloc {
     self.host = nil;
     self.sendDate = nil;

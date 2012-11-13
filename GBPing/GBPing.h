@@ -15,10 +15,11 @@
 
 @interface GBPing : NSObject <SimplePingDelegate>
 
-@property (nonatomic, weak) id<GBPingDelegate>      delegate;
+@property (weak, nonatomic) id<GBPingDelegate>      delegate;
 
 @property (copy, nonatomic) NSString                *host;
 @property (assign, nonatomic) NSTimeInterval        pingPeriod;
+@property (assign, nonatomic) NSTimeInterval        timeout;
 @property (assign, nonatomic) NSUInteger            packetSize;
 @property (assign, nonatomic) NSUInteger            ttl;
 @property (assign, nonatomic, readonly) BOOL        isPinging;
@@ -30,7 +31,15 @@
 
 @protocol GBPingDelegate <NSObject>
 
+@required
+
+-(void)pingDidSuccessfullyStart:(GBPing *)pinger;
+-(void)ping:(GBPing *)pinger didFailWithError:(NSError *)error;
+
 -(void)ping:(GBPing *)pinger didSendPingToHost:(NSString *)host withSequenceNumber:(NSUInteger)sequenceNumber;
+-(void)ping:(GBPing *)pinger didFailToSendPingToHost:(NSString *)host withSequenceNumber:(NSUInteger)sequenceNumber;
+-(void)ping:(GBPing *)pinger didTimeoutWithSummary:(GBPingSummary *)summary fromHost:(NSString *)host;
 -(void)ping:(GBPing *)pinger didReceiveReplyWithSummary:(GBPingSummary *)summary fromHost:(NSString *)host;
+-(void)ping:(GBPing *)pinger didReceiveUnexpectedReplyWithSummary:(GBPingSummary *)summary fromHost:(NSString *)host;
 
 @end

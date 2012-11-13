@@ -402,8 +402,8 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
                 [self.delegate simplePing:self didReceivePingResponsePacket:packet withSequenceNumber:seqNo];
             }
         } else {
-            if ( (self.delegate != nil) && [self.delegate respondsToSelector:@selector(simplePing:didReceiveUnexpectedPacket:)] ) {
-                [self.delegate simplePing:self didReceiveUnexpectedPacket:packet];
+            if ( (self.delegate != nil) && [self.delegate respondsToSelector:@selector(simplePing:didReceiveUnexpectedPacket:withSequenceNumber:)] ) {
+                [self.delegate simplePing:self didReceiveUnexpectedPacket:packet withSequenceNumber:seqNo];
             }
         }
     } else {

@@ -10,6 +10,12 @@
 
 @interface GBPingSummary : NSObject
 
+typedef enum {
+    GBPingStatusPending,
+    GBPingStatusSuccess,
+    GBPingStatusFail,
+} GBPingStatus;
+
 @property (assign, nonatomic) NSUInteger        sequenceNumber;
 @property (assign, nonatomic) NSUInteger        packetSize;
 @property (assign, nonatomic) NSUInteger        ttl;
@@ -17,5 +23,6 @@
 @property (strong, nonatomic) NSDate            *sendDate;
 @property (strong, nonatomic) NSDate            *receiveDate;
 @property (assign, nonatomic) NSTimeInterval    rtt;
+@property (assign, nonatomic) GBPingStatus      status;
 
 @end

@@ -130,7 +130,7 @@
     // an identifier that matches our identifier, and has a sequence number in 
     // the range of sequence numbers that we've sent out).
 
-- (void)simplePing:(SimplePing *)pinger didReceiveUnexpectedPacket:(NSData *)packet;
+- (void)simplePing:(SimplePing *)pinger didReceiveUnexpectedPacket:(NSData *)packet withSequenceNumber:(NSUInteger)seqNo;
     // Called whenever the SimplePing object receives an ICMP packet that does not 
     // look like a response to one of our pings.
 

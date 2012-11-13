@@ -13,7 +13,25 @@
 		8ADF26C31647CC1F000240C2 /* GBPing.m in Sources */ = {isa = PBXBuildFile; fileRef = 8ADF26C21647CC1F000240C2 /* GBPing.m */; };
 		8ADF26CC1647CC43000240C2 /* SimplePing.m in Sources */ = {isa = PBXBuildFile; fileRef = 8ADF26CB1647CC43000240C2 /* SimplePing.m */; };
 		8ADF26E21647D4B0000240C2 /* GBPingSummary.m in Sources */ = {isa = PBXBuildFile; fileRef = 8ADF26E11647D4B0000240C2 /* GBPingSummary.m */; };
+		8AE906F416529D300083DD01 /* libGBToolbox.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8AE906EF16529D0A0083DD01 /* libGBToolbox.a */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		8AE906EE16529D0A0083DD01 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8AE906EA16529D0A0083DD01 /* GBToolbox.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 8AD911B1162D9E2200C9D287;
+			remoteInfo = GBToolbox;
+		};
+		8AE906F216529D280083DD01 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8AE906EA16529D0A0083DD01 /* GBToolbox.xcodeproj */;
+			proxyType = 1;
+			remoteGlobalIDString = 8AD911B0162D9E2200C9D287;
+			remoteInfo = GBToolbox;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		8ADF26B61647CC1F000240C2 /* CopyFiles */ = {
@@ -39,6 +57,7 @@
 		8ADF26CB1647CC43000240C2 /* SimplePing.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SimplePing.m; sourceTree = "<group>"; };
 		8ADF26E01647D4B0000240C2 /* GBPingSummary.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GBPingSummary.h; sourceTree = "<group>"; };
 		8ADF26E11647D4B0000240C2 /* GBPingSummary.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GBPingSummary.m; sourceTree = "<group>"; };
+		8AE906EA16529D0A0083DD01 /* GBToolbox.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = GBToolbox.xcodeproj; path = "/Users/lm/Dropbox/Projects/Ping Doctor/Ping Doctor iOS/Ping Doctor/../../../Goonbee Modules/GBToolbox/GBToolbox.xcodeproj"; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -46,6 +65,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8AE906F416529D300083DD01 /* libGBToolbox.a in Frameworks */,
 				8A70AC3D16526C7500409BAF /* CFNetwork.framework in Frameworks */,
 				8ADF26BC1647CC1F000240C2 /* Foundation.framework in Frameworks */,
 			);
@@ -83,6 +103,7 @@
 		8ADF26BD1647CC1F000240C2 /* GBPing */ = {
 			isa = PBXGroup;
 			children = (
+				8AE906F116529D0F0083DD01 /* Libraries */,
 				8ADF26C91647CC35000240C2 /* Apple SimplePing */,
 				8ADF26CD1647CC49000240C2 /* Source */,
 				8ADF26BE1647CC1F000240C2 /* Supporting Files */,
@@ -118,6 +139,22 @@
 			name = Source;
 			sourceTree = "<group>";
 		};
+		8AE906EB16529D0A0083DD01 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				8AE906EF16529D0A0083DD01 /* libGBToolbox.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		8AE906F116529D0F0083DD01 /* Libraries */ = {
+			isa = PBXGroup;
+			children = (
+				8AE906EA16529D0A0083DD01 /* GBToolbox.xcodeproj */,
+			);
+			name = Libraries;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -132,6 +169,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				8AE906F316529D280083DD01 /* PBXTargetDependency */,
 			);
 			name = GBPing;
 			productName = GBPing;
@@ -157,12 +195,28 @@
 			mainGroup = 8ADF26AD1647CC1F000240C2;
 			productRefGroup = 8ADF26B91647CC1F000240C2 /* Products */;
 			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = 8AE906EB16529D0A0083DD01 /* Products */;
+					ProjectRef = 8AE906EA16529D0A0083DD01 /* GBToolbox.xcodeproj */;
+				},
+			);
 			projectRoot = "";
 			targets = (
 				8ADF26B71647CC1F000240C2 /* GBPing */,
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXReferenceProxy section */
+		8AE906EF16529D0A0083DD01 /* libGBToolbox.a */ = {
+			isa = PBXReferenceProxy;
+			fileType = archive.ar;
+			path = libGBToolbox.a;
+			remoteRef = 8AE906EE16529D0A0083DD01 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+/* End PBXReferenceProxy section */
 
 /* Begin PBXSourcesBuildPhase section */
 		8ADF26B41647CC1F000240C2 /* Sources */ = {
@@ -176,6 +230,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		8AE906F316529D280083DD01 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = GBToolbox;
+			targetProxy = 8AE906F216529D280083DD01 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		8ADF26C41647CC1F000240C2 /* Debug */ = {
@@ -199,6 +261,7 @@
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "../**";
 				IPHONEOS_DEPLOYMENT_TARGET = 5.0;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
@@ -219,6 +282,7 @@
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "../**";
 				IPHONEOS_DEPLOYMENT_TARGET = 5.0;
 				SDKROOT = iphoneos;
 				VALIDATE_PRODUCT = YES;
@@ -231,6 +295,7 @@
 				DSTROOT = /tmp/GBPing.dst;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "GBPing/GBPing-Prefix.pch";
+				HEADER_SEARCH_PATHS = "../**";
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -243,6 +308,7 @@
 				DSTROOT = /tmp/GBPing.dst;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "GBPing/GBPing-Prefix.pch";
+				HEADER_SEARCH_PATHS = "../**";
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
