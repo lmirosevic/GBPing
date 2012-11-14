@@ -105,6 +105,9 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
 
 @interface SimplePing ()
 
+@property (assign, nonatomic) int socket;
+@property (assign, nonatomic) dispatch_source_t dispatchSource;
+
 @property (nonatomic, copy,   readwrite) NSData *           hostAddress;
 @property (nonatomic, assign, readwrite) uint16_t           nextSequenceNumber;
 
@@ -116,7 +119,6 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
 @implementation SimplePing
 {
     CFHostRef               _host;
-    CFSocketRef             _socket;
 }
 
 @synthesize hostName           = _hostName;
@@ -133,7 +135,7 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
     self = [super init];
     if (self != nil) {
         
-        l(@"init SimplePing");//foo other init too make sure this is the only one
+//        l(@"+SimplePing");
         
         self.ttl = 0;
         self->_hostName    = [hostName copy];
@@ -145,11 +147,11 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
 
 - (void)dealloc
 {
-    l(@"dealloc SimplePing");
+//    l(@"-SimplePing");
     // -stop takes care of _host and _socket.
     [self stop];
     assert(self->_host == NULL);
-    assert(self->_socket == NULL);
+    assert(self.socket == 0);
 }
 
 + (SimplePing *)simplePingWithHostName:(NSString *)hostName
@@ -248,12 +250,12 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
     
     // Send the packet.
     
-    if (self->_socket == NULL) {
+    if (self.socket == 0) {
         bytesSent = -1;
         err = EBADF;
     } else {
         bytesSent = sendto(
-            CFSocketGetNative(self->_socket),
+            self.socket,
             [packet bytes],
             [packet length], 
             0, 
@@ -272,8 +274,10 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
 
         // Complete success.  Tell the client.
         
-        if ( (self.delegate != nil) && [self.delegate respondsToSelector:@selector(simplePing:didSendPacket:)] ) {
-            [self.delegate simplePing:self didSendPacket:packet];
+        NSDate *sendDate = [NSDate date];
+        
+        if ( (self.delegate != nil) && [self.delegate respondsToSelector:@selector(simplePing:didSendPacket:atDate:)] ) {
+            [self.delegate simplePing:self didSendPacket:packet atDate:sendDate];
         }
     } else {
         NSError *   error;
@@ -381,7 +385,7 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
     // Actually read the data.
     
     addrLen = sizeof(addr);
-    bytesRead = recvfrom(CFSocketGetNative(self->_socket), buffer, kBufferSize, 0, (struct sockaddr *) &addr, &addrLen);
+    bytesRead = recvfrom(self.socket, buffer, kBufferSize, 0, (struct sockaddr *) &addr, &addrLen);
     err = 0;
     if (bytesRead < 0) {
         err = errno;
@@ -391,6 +395,7 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
     
     if (bytesRead > 0) {
         NSMutableData *     packet;
+        NSDate *receiveDate = [NSDate date];
 
         packet = [NSMutableData dataWithBytes:buffer length:(NSUInteger) bytesRead];
         assert(packet != nil);
@@ -402,14 +407,18 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
         NSUInteger seqNo = (NSUInteger)OSSwapBigToHostInt16(headerPointer->sequenceNumber);
         
         if ( [self isValidPingResponsePacket:packet] ) {
-            if ( (self.delegate != nil) && [self.delegate respondsToSelector:@selector(simplePing:didReceivePingResponsePacket:withSequenceNumber:)] ) {
-                //WARNING: THIS exit point is on a bg queue
-                [self.delegate simplePing:self didReceivePingResponsePacket:packet withSequenceNumber:seqNo];
+            if ( (self.delegate != nil) && [self.delegate respondsToSelector:@selector(simplePing:didReceivePingResponsePacket:withSequenceNumber:atDate:)] ) {
+                //NOTE: THIS exit point is on a main queue
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self.delegate simplePing:self didReceivePingResponsePacket:packet withSequenceNumber:seqNo atDate:receiveDate];
+                });
             }
         } else {
-            if ( (self.delegate != nil) && [self.delegate respondsToSelector:@selector(simplePing:didReceiveUnexpectedPacket:withSequenceNumber:)] ) {
-                //WARNING: THIS exit point is on a bg queue
-                [self.delegate simplePing:self didReceiveUnexpectedPacket:packet withSequenceNumber:seqNo];
+            if ( (self.delegate != nil) && [self.delegate respondsToSelector:@selector(simplePing:didReceiveUnexpectedPacket:withSequenceNumber:atDate:)] ) {
+                //NOTE: THIS exit point is on a main queue
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self.delegate simplePing:self didReceiveUnexpectedPacket:packet withSequenceNumber:seqNo atDate:receiveDate];
+                });
             }
         }
     } else {
@@ -420,6 +429,7 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
             err = EPIPE;
         }
         
+        //NOTE: THIS exit point is on a main queue
         dispatch_async(dispatch_get_main_queue(), ^{
             [self didFailWithError:[NSError errorWithDomain:NSPOSIXErrorDomain code:err userInfo:nil]];
         });
@@ -431,32 +441,32 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
     // let CFSocket call us again.
 }
 
-static void SocketReadCallback(CFSocketRef s, CFSocketCallBackType type, CFDataRef address, const void *data, void *info)
-    // This C routine is called by CFSocket when there's data waiting on our 
-    // ICMP socket.  It just redirects the call to Objective-C code.
-{
-    SimplePing *    obj;
-    
-    obj = (__bridge SimplePing *) info;
-    assert([obj isKindOfClass:[SimplePing class]]);
-    
-    #pragma unused(s)
-    assert(s == obj->_socket);
-    #pragma unused(type)
-    assert(type == kCFSocketReadCallBack);
-    #pragma unused(address)
-    assert(address == nil);
-    #pragma unused(data)
-    assert(data == nil);
-    
-    [obj readData];
-}
+//static void SocketReadCallback(CFSocketRef s, CFSocketCallBackType type, CFDataRef address, const void *data, void *info)
+//    // This C routine is called by CFSocket when there's data waiting on our 
+//    // ICMP socket.  It just redirects the call to Objective-C code.
+//{
+//    SimplePing *    obj;
+//    
+//    obj = (__bridge SimplePing *) info;
+//    assert([obj isKindOfClass:[SimplePing class]]);
+//    
+//    #pragma unused(s)
+//    assert(s == obj->_socket);
+//    #pragma unused(type)
+//    assert(type == kCFSocketReadCallBack);
+//    #pragma unused(address)
+//    assert(address == nil);
+//    #pragma unused(data)
+//    assert(data == nil);
+//    
+//    [obj readData];
+//}
 
 - (void)startWithHostAddress
     // We have a host address, so let's actually start pinging it.
 {
     int                     err;
-    int                     fd;
+//    int                     fd;
     const struct sockaddr * addrPtr;
 
     assert(self.hostAddress != nil);
@@ -465,12 +475,12 @@ static void SocketReadCallback(CFSocketRef s, CFSocketCallBackType type, CFDataR
     
     addrPtr = (const struct sockaddr *) [self.hostAddress bytes];
 
-    fd = -1;
+//    fd = -1;
     err = 0;
     switch (addrPtr->sa_family) {
         case AF_INET: {
-            fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
-            if (fd < 0) {
+            self.socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
+            if (self.socket < 0) {
                 err = errno;
             }
         } break;
@@ -485,45 +495,23 @@ static void SocketReadCallback(CFSocketRef s, CFSocketCallBackType type, CFDataR
     if (err != 0) {
         [self didFailWithError:[NSError errorWithDomain:NSPOSIXErrorDomain code:err userInfo:nil]];
     } else {
-        CFSocketContext     context = {0, (__bridge void *)(self), NULL, NULL, NULL};
-//        CFRunLoopSourceRef  rls;
-        
-        // Wrap it in a CFSocket and schedule it on the runloop.
-        
-        self->_socket = CFSocketCreateWithNative(NULL, fd, kCFSocketReadCallBack, SocketReadCallback, &context);
-        assert(self->_socket != NULL);
-        
         //set ttl on the socket
         if (self.ttl) {
-            setsockopt(CFSocketGetNative(self->_socket), IPPROTO_IP, IP_TTL, &_ttl, sizeof(NSUInteger));//foo
+            setsockopt(self.socket, IPPROTO_IP, IP_TTL, &_ttl, sizeof(NSUInteger));//foo
         }
         
-        // The socket will now take care of cleaning up our file descriptor.
-        
-        assert( CFSocketGetSocketFlags(self->_socket) & kCFSocketCloseOnInvalidate );
-        fd = -1;
-        
-//        rls = CFSocketCreateRunLoopSource(NULL, self->_socket, 0);
-//        assert(rls != NULL);
-        
-//        CFRunLoopAddSource(CFRunLoopGetCurrent(), rls, kCFRunLoopDefaultMode);
-        
-//        CFRelease(rls);
-        
-        
-        dispatch_source_t ds = dispatch_source_create(DISPATCH_SOURCE_TYPE_READ, CFSocketGetNative(self->_socket), 0, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0));
-        dispatch_source_set_event_handler(ds, ^{
-//            l(@"got a packet with GCD");
+        //set up GCD dispatch source
+        self.dispatchSource = dispatch_source_create(DISPATCH_SOURCE_TYPE_READ, self.socket, 0, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0));
+        dispatch_source_set_event_handler(self.dispatchSource, ^{
             [self readData];
         });
-        dispatch_resume(ds);
+        dispatch_resume(self.dispatchSource);
         
-
+        //notify delegate
         if ( (self.delegate != nil) && [self.delegate respondsToSelector:@selector(simplePing:didStartWithAddress:)] ) {
             [self.delegate simplePing:self didStartWithAddress:self.hostAddress];
         }
     }
-    assert(fd == -1);
 }
 
 - (void)hostResolutionDone
@@ -631,10 +619,9 @@ static void HostResolveCallback(CFHostRef theHost, CFHostInfoType typeInfo, cons
 - (void)stopDataTransfer   
     // Shut down anything to do with sending and receiving pings.
 {
-    if (self->_socket != NULL) {
-        CFSocketInvalidate(self->_socket);
-        CFRelease(self->_socket);
-        self->_socket = NULL;
+    if (self.socket != 0) {
+        close(self.socket);
+        self.socket = 0;
     }
 }
 
@@ -643,7 +630,13 @@ static void HostResolveCallback(CFHostRef theHost, CFHostInfoType typeInfo, cons
 {
     [self stopHostResolution];
     [self stopDataTransfer];
-    
+
+    //cancel dispatch source
+    if (self.dispatchSource) {
+        dispatch_source_cancel(self.dispatchSource);
+    }
+    self.dispatchSource = nil;
+
     // If we were started with a host name, junk the host address on stop.  If the 
     // client calls -start again, we'll re-resolve the host name.
     

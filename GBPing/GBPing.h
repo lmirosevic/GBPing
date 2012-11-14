@@ -13,7 +13,7 @@
 @class GBPingSummary;
 @protocol GBPingDelegate;
 
-//typedef void(^StartupCallback)(BOOL, NSError *);
+typedef void(^StartupCallback)(BOOL success, NSError *error);
 
 @interface GBPing : NSObject <SimplePingDelegate>
 
@@ -26,9 +26,8 @@
 @property (assign, nonatomic) NSUInteger            ttl;
 @property (assign, atomic, readonly) BOOL        isPinging;
 
-//-(void)start:(StartupCallback)callback;
--(void)setup;
--(void)start;
+-(void)setup;//get rid of this
+-(void)start;//add a startup callback to this
 -(void)stop;
 
 @end
@@ -42,8 +41,8 @@
 
 -(void)ping:(GBPing *)pinger didSendPingToHost:(NSString *)host withSequenceNumber:(NSUInteger)sequenceNumber;
 -(void)ping:(GBPing *)pinger didFailToSendPingToHost:(NSString *)host withSequenceNumber:(NSUInteger)sequenceNumber;
--(void)ping:(GBPing *)pinger didTimeoutWithSummary:(GBPingSummary *)summary fromHost:(NSString *)host;
--(void)ping:(GBPing *)pinger didReceiveReplyWithSummary:(GBPingSummary *)summary fromHost:(NSString *)host;
--(void)ping:(GBPing *)pinger didReceiveUnexpectedReplyWithSummary:(GBPingSummary *)summary fromHost:(NSString *)host;
+-(void)ping:(GBPing *)pinger didTimeoutWithSummary:(GBPingSummary *)summary;
+-(void)ping:(GBPing *)pinger didReceiveReplyWithSummary:(GBPingSummary *)summary;
+-(void)ping:(GBPing *)pinger didReceiveUnexpectedReplyWithSummary:(GBPingSummary *)summary;
 
 @end

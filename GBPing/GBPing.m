@@ -20,7 +20,7 @@
 @property (nonatomic, strong) SimplePing *simplePing;
 @property (assign, atomic, readwrite) BOOL isPinging;
 @property (nonatomic, strong) NSTimer *pingTimer;
-@property (assign, atomic) NSUInteger nextSequenceNumber;
+@property (assign, nonatomic) NSUInteger nextSequenceNumber;
 @property (nonatomic, strong) NSMutableDictionary *pendingPings;
 @property (nonatomic, strong) NSMutableDictionary *timeoutTimers;
 
@@ -120,7 +120,6 @@
         
         //set up SimplePing
         self.simplePing = [SimplePing simplePingWithHostName:self.host];
-        l(@"+1");
         self.simplePing.ttl = self.ttl;
         self.simplePing.delegate = self;
         [self.simplePing start];
@@ -158,9 +157,7 @@
         
         //destroy pinger
         [self.simplePing stop];
-//        l(@"destroy SimplePing");
         self.simplePing = nil;
-        l(@"-1");
         
         //destroy timer
         [self.pingTimer invalidate];
@@ -174,13 +171,8 @@
 #pragma mark - ping tick
 
 -(void)pingTick {
-//    NSLog(@"make sure this is main queue12: %s", dispatch_queue_get_label(dispatch_get_current_queue()));
-    
-    //send a ping on a background thread
-//    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
-        [self.simplePing sendPingWithData:[self generateDataWithLength:(self.payloadSize)]];
-        self.nextSequenceNumber += 1;
-//    });
+    [self.simplePing sendPingWithData:[self generateDataWithLength:(self.payloadSize)]];
+    self.nextSequenceNumber += 1;
 }
 
 #pragma mark - util {
@@ -195,94 +187,79 @@
 
 #pragma mark - simple ping delegate
 
--(void)simplePing:(SimplePing *)pinger didReceiveUnexpectedPacket:(NSData *)packet {
+-(void)simplePing:(SimplePing *)pinger didReceiveUnexpectedPacket:(NSData *)packet atDate:(NSDate *)date {
     //WARNING: this one infers data about the packet, rather than actually reading it, so it could be wrong in the case where someone sends us an ICMP packet which happens to have the same seq number as one of the packets we were expecting.
 //    NSLog(@"GBPing: unexpected packet");
-    
-//    NSLog(@"make sure this is bg queue1: %s", dispatch_queue_get_label(dispatch_get_current_queue()));
-
     GBPingSummary *newPingSummary = [[GBPingSummary alloc] init];
     newPingSummary.host = self.host;
-    newPingSummary.receiveDate = [NSDate date];
+    newPingSummary.receiveDate = date;
     newPingSummary.sequenceNumber = self.nextSequenceNumber;
     newPingSummary.ttl = self.ttl;
     newPingSummary.payloadSize = self.payloadSize;
     newPingSummary.status = GBPingStatusFail;
     
-    dispatch_async(dispatch_get_main_queue(), ^{
-        //NOTE this is back on the main queue
-        [self.delegate ping:self didReceiveUnexpectedReplyWithSummary:newPingSummary fromHost:self.host];
-    });
+    [self.delegate ping:self didReceiveUnexpectedReplyWithSummary:newPingSummary];
 }
 
 -(void)simplePing:(SimplePing *)pinger didFailToSendPacket:(NSData *)packet error:(NSError *)error {
-    
-//    NSLog(@"make sure this is main queue1: %s", dispatch_queue_get_label(dispatch_get_current_queue()));
     NSLog(@"GBPing: failed to send packet with error code: %d", error.code);
     
     [self.delegate ping:self didFailToSendPingToHost:self.host withSequenceNumber:self.nextSequenceNumber];
 }
 
 -(void)simplePing:(SimplePing *)pinger didStartWithAddress:(NSData *)address {
-    
-//    NSLog(@"make sure this is main queue2: %s", dispatch_queue_get_label(dispatch_get_current_queue()));
 //    NSLog(@"GBPing: successfully started");
-    
     
     [self.delegate pingDidSuccessfullySetup:self];
 }
 
 -(void)simplePing:(SimplePing *)pinger didFailWithError:(NSError *)error {
-    
-//    NSLog(@"make sure this is main queue3: %s", dispatch_queue_get_label(dispatch_get_current_queue()));
     NSLog(@"GBPing: failed with error code: %d", error.code);
     
-    [self stop];//stop the timers etc.//foo this calls stop on an already stopped simpleping, hope thats ok
+    [self stop];//stop the timers etc
     
     [self.delegate ping:self didFailWithError:error];
 }
 
--(void)simplePing:(SimplePing *)pinger didSendPacket:(NSData *)packet {
-    
-//    NSLog(@"make sure this is main queue4: %s", dispatch_queue_get_label(dispatch_get_current_queue()));
-    
+-(void)simplePing:(SimplePing *)pinger didSendPacket:(NSData *)packet atDate:(NSDate *)date {
     //construct ping summary, as much as it can
     GBPingSummary *newPingSummary = [[GBPingSummary alloc] init];
     newPingSummary.host = self.host;
-    newPingSummary.sendDate = [NSDate date];
+    newPingSummary.sendDate = date;
     newPingSummary.sequenceNumber = self.nextSequenceNumber;
     newPingSummary.status = GBPingStatusPending;
     newPingSummary.ttl = self.ttl;
     newPingSummary.payloadSize = self.payloadSize;
     
+    NSNumber *key = @(self.nextSequenceNumber);
+    
     //add it to pending pings
-    self.pendingPings[@(self.nextSequenceNumber)] = newPingSummary;
+    self.pendingPings[key] = newPingSummary;
     
     //add a fail timer
     NSTimer *timeoutTimer = [NSTimer timerWithTimeInterval:self.timeout repeats:NO withBlock:^{
         newPingSummary.status = GBPingStatusFail;
         
-        [self.delegate ping:self didTimeoutWithSummary:newPingSummary fromHost:self.host];
+        [self.delegate ping:self didTimeoutWithSummary:newPingSummary];
         
-        [self.timeoutTimers removeObjectForKey:@(self.nextSequenceNumber)];
+        [self.pendingPings removeObjectForKey:key];
+        
+        [self.timeoutTimers removeObjectForKey:key];
     }];
     [[NSRunLoop mainRunLoop] addTimer:timeoutTimer forMode:NSRunLoopCommonModes];
     
     //keep a local ref to it
-    self.timeoutTimers[@(self.nextSequenceNumber)] = timeoutTimer;
+    self.timeoutTimers[key] = timeoutTimer;
     
     //delegate
     [self.delegate ping:self didSendPingToHost:self.host withSequenceNumber:self.nextSequenceNumber];
 }
 
--(void)simplePing:(SimplePing *)pinger didReceivePingResponsePacket:(NSData *)packet withSequenceNumber:(NSUInteger)seqNo {
-    
-//    NSLog(@"make sure this is bg queue3: %s", dispatch_queue_get_label(dispatch_get_current_queue()));
-    
+-(void)simplePing:(SimplePing *)pinger didReceivePingResponsePacket:(NSData *)packet withSequenceNumber:(NSUInteger)seqNo atDate:(NSDate *)date {
     //record receive date
     GBPingSummary *pingSummary = (GBPingSummary *)self.pendingPings[@(seqNo)];
     if (pingSummary) {
-        pingSummary.receiveDate = [NSDate date];
+        pingSummary.receiveDate = date;
         pingSummary.sequenceNumber = seqNo;
         pingSummary.ttl = pinger.ttl;
         pingSummary.status = GBPingStatusSuccess;
@@ -296,32 +273,26 @@
         [self.timeoutTimers removeObjectForKey:@(seqNo)];
         
         //notify delegate
-        dispatch_async(dispatch_get_main_queue(), ^{
-            //NOTE back on main queue
-            [self.delegate ping:self didReceiveReplyWithSummary:pingSummary fromHost:self.host];
-        });
+        [self.delegate ping:self didReceiveReplyWithSummary:pingSummary];
     }
 }
 
 #pragma mark - memory
 
--(id)init {
-    if (self = [super init]) {
-        l(@"GBPing init");
-    }
-    
-    return self;
-}
+//-(id)init {
+//    if (self = [super init]) {
+//    }
+//    
+//    return self;
+//}
 
--(void)dealloc {
-    l(@"GBPing dealloc");
-    self.delegate = nil;
-    self.host = nil;
-    self.simplePing = nil;
-    l(@"-1");
-    self.pingTimer = nil;
-    self.timeoutTimers = nil;
-    self.pendingPings = nil;
-}
+//-(void)dealloc {
+//    self.delegate = nil;
+//    self.host = nil;
+//    self.simplePing = nil;
+//    self.pingTimer = nil;
+//    self.timeoutTimers = nil;
+//    self.pendingPings = nil;
+//}
 
 @end
