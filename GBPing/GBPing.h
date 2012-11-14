@@ -13,6 +13,8 @@
 @class GBPingSummary;
 @protocol GBPingDelegate;
 
+//typedef void(^StartupCallback)(BOOL, NSError *);
+
 @interface GBPing : NSObject <SimplePingDelegate>
 
 @property (weak, nonatomic) id<GBPingDelegate>      delegate;
@@ -24,6 +26,8 @@
 @property (assign, nonatomic) NSUInteger            ttl;
 @property (assign, nonatomic, readonly) BOOL        isPinging;
 
+//-(void)start:(StartupCallback)callback;
+-(void)setup;
 -(void)start;
 -(void)stop;
 
@@ -31,9 +35,9 @@
 
 @protocol GBPingDelegate <NSObject>
 
-@required
+@optional
 
--(void)pingDidSuccessfullyStart:(GBPing *)pinger;
+-(void)pingDidSuccessfullySetup:(GBPing *)pinger;
 -(void)ping:(GBPing *)pinger didFailWithError:(NSError *)error;
 
 -(void)ping:(GBPing *)pinger didSendPingToHost:(NSString *)host withSequenceNumber:(NSUInteger)sequenceNumber;

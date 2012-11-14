@@ -31,6 +31,7 @@
 @synthesize payloadSize = _payloadSize;
 @synthesize ttl = _ttl;
 @synthesize timeout = _timeout;
+@synthesize pingPeriod = _pingPeriod;
 
 #pragma mark - custom acc
 
@@ -42,6 +43,16 @@
 //    return _pendingPings;
 //}
 
+
+-(void)setTimeout:(NSTimeInterval)timeout {
+    if (self.isPinging) {
+        NSLog(@"GBPing: can't set timeout while pinger is running.");
+    }
+    else {
+        _timeout = timeout;
+    }
+}
+
 -(NSTimeInterval)timeout {
     if (!_timeout) {
         return kDefaultTimeout;
@@ -51,15 +62,12 @@
     }
 }
 
--(void)setTimeout:(NSTimeInterval)timeout {
-    _timeout = timeout;//foo might need some sort of reset, at least for the timers
-}
-
 -(void)setTtl:(NSUInteger)ttl {
-    _ttl = ttl;
-    
     if (self.isPinging) {
-        [self restart];
+        NSLog(@"GBPing: can't set ttl while pinger is running.");
+    }
+    else {
+        _ttl = ttl;
     }
 }
 
@@ -73,10 +81,11 @@
 }
 
 -(void)setPayloadSize:(NSUInteger)payloadSize {
-    _payloadSize = payloadSize;
-    
     if (self.isPinging) {
-        [self restart];
+        NSLog(@"GBPing: can't set payload size while pinger is running.");
+    }
+    else {
+        _payloadSize = payloadSize;
     }
 }
 
@@ -86,6 +95,15 @@
     }
     else {
         return _payloadSize;
+    }
+}
+
+-(void)setPingPeriod:(NSTimeInterval)pingPeriod {
+    if (self.isPinging) {
+        NSLog(@"GBPing: can't set pingPeriod while pinger is running.");
+    }
+    else {
+        _pingPeriod = pingPeriod;
     }
 }
 
@@ -100,7 +118,7 @@
 
 #pragma mark - public API
 
--(void)start {
+-(void)setup {
     if (!self.isPinging) {
         self.isPinging = YES;
         
@@ -116,7 +134,18 @@
         [self.simplePing start];
     }
     else {
-        NSLog(@"GBPing: can't start, already pinging");
+        NSLog(@"GBPing: can't setup, already pinging");
+    }
+}
+
+-(void)start {
+    if (self.isPinging) {
+        self.pingTimer = [NSTimer timerWithTimeInterval:self.pingPeriod target:self selector:@selector(pingTick) userInfo:nil repeats:YES];
+        [[NSRunLoop mainRunLoop] addTimer:self.pingTimer forMode:NSRunLoopCommonModes];
+        [self.pingTimer fire];
+    }
+    else {
+        NSLog(@"GBPing: can't start, not pinging. Call setup first");
     }
 }
 
@@ -148,15 +177,16 @@
     }
 }
 
--(void)restart {
-    if (self.isPinging) {
-        [self stop];
-        [self start];
-    }
-    else {
-        NSLog(@"GBPing: can't restart, not pinging");
-    }
-}
+//-(void)restart {
+//    if (self.isPinging) {
+//        [self stop];
+//        [self setup];
+//        [self start];
+//    }
+//    else {
+//        NSLog(@"GBPing: can't restart, not pinging");
+//    }
+//}
 
 #pragma mark - ping tick
 
@@ -180,7 +210,7 @@
 
 -(void)simplePing:(SimplePing *)pinger didReceiveUnexpectedPacket:(NSData *)packet {
     //WARNING: this one infers data about the packet, rather than actually reading it, so it could be wrong in the case where someone sends us an ICMP packet which happens to have the same seq number as one of the packets we were expecting.
-    NSLog(@"gbping: unexpected packet");
+//    NSLog(@"GBPing: unexpected packet");
 
     GBPingSummary *newPingSummary = [[GBPingSummary alloc] init];
     newPingSummary.host = self.host;
@@ -194,17 +224,17 @@
 }
 
 -(void)simplePing:(SimplePing *)pinger didFailToSendPacket:(NSData *)packet error:(NSError *)error {
-    NSLog(@"gbping: failed to send packet with error code: %d", error.code);
+    NSLog(@"GBPing: failed to send packet with error code: %d", error.code);
     [self.delegate ping:self didFailToSendPingToHost:self.host withSequenceNumber:self.nextSequenceNumber];
 }
 
 -(void)simplePing:(SimplePing *)pinger didStartWithAddress:(NSData *)address {
-    self.pingTimer = [NSTimer scheduledTimerWithTimeInterval:self.pingPeriod target:self selector:@selector(pingTick) userInfo:nil repeats:YES];
-    [self.pingTimer fire];
+//    NSLog(@"GBPing: successfully started");
+    [self.delegate pingDidSuccessfullySetup:self];
 }
 
 -(void)simplePing:(SimplePing *)pinger didFailWithError:(NSError *)error {
-    NSLog(@"gbping: failed with error code: %d", error.code);
+    NSLog(@"GBPing: failed with error code: %d", error.code);
     
     [self stop];//stop the timers etc.//foo this calls stop on an already stopped simpleping, hope thats ok
     
@@ -225,15 +255,13 @@
     self.pendingPings[@(self.nextSequenceNumber)] = newPingSummary;
     
     //add a fail timer
-    NSTimer *timeoutTimer = [NSTimer scheduledTimerWithTimeInterval:self.timeout repeats:NO withBlock:^{
+    NSTimer *timeoutTimer = [NSTimer timerWithTimeInterval:self.timeout repeats:NO withBlock:^{
         newPingSummary.status = GBPingStatusFail;
         [self.delegate ping:self didTimeoutWithSummary:newPingSummary fromHost:self.host];
         
         [self.timeoutTimers removeObjectForKey:@(self.nextSequenceNumber)];
     }];
-    
-//    //describe it
-//    timeoutTimer.gbDescription = [NSString stringWithFormat:@"%d", self.nextSequenceNumber];
+    [[NSRunLoop mainRunLoop] addTimer:timeoutTimer forMode:NSRunLoopCommonModes];
     
     //keep a local ref to it
     self.timeoutTimers[@(self.nextSequenceNumber)] = timeoutTimer;
