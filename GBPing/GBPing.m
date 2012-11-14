@@ -18,11 +18,13 @@
 @interface GBPing ()
 
 @property (nonatomic, strong) SimplePing *simplePing;
-@property (nonatomic, readwrite) BOOL isPinging;
+@property (assign, atomic, readwrite) BOOL isPinging;
 @property (nonatomic, strong) NSTimer *pingTimer;
-@property (nonatomic) NSUInteger nextSequenceNumber;
+@property (assign, atomic) NSUInteger nextSequenceNumber;
 @property (nonatomic, strong) NSMutableDictionary *pendingPings;
 @property (nonatomic, strong) NSMutableDictionary *timeoutTimers;
+
+@property (assign, atomic) dispatch_queue_t myQueue;
 
 @end
 
@@ -119,81 +121,81 @@
 #pragma mark - public API
 
 -(void)setup {
-    if (!self.isPinging) {
-        self.isPinging = YES;
-        
-        //set up self
-        self.nextSequenceNumber = 0;
-        self.pendingPings = [[NSMutableDictionary alloc] init];
-        self.timeoutTimers = [[NSMutableDictionary alloc] init];
-        
-        //set up SimplePing
-        self.simplePing = [SimplePing simplePingWithHostName:self.host];
-        self.simplePing.ttl = self.ttl;
-        self.simplePing.delegate = self;
-        [self.simplePing start];
-    }
-    else {
-        NSLog(@"GBPing: can't setup, already pinging");
-    }
+    dispatch_async(self.myQueue, ^{
+        if (!self.isPinging) {
+            self.isPinging = YES;
+            
+            //set up self
+            self.nextSequenceNumber = 0;
+            self.pendingPings = [[NSMutableDictionary alloc] init];
+            self.timeoutTimers = [[NSMutableDictionary alloc] init];
+            
+            //set up SimplePing
+            self.simplePing = [SimplePing simplePingWithHostName:self.host];
+            self.simplePing.ttl = self.ttl;
+            self.simplePing.delegate = self;
+            [self.simplePing start];
+        }
+        else {
+            NSLog(@"GBPing: can't setup, already pinging");
+        }
+    });
 }
 
 -(void)start {
-    if (self.isPinging) {
-        self.pingTimer = [NSTimer timerWithTimeInterval:self.pingPeriod target:self selector:@selector(pingTick) userInfo:nil repeats:YES];
-        [[NSRunLoop mainRunLoop] addTimer:self.pingTimer forMode:NSRunLoopCommonModes];
-        [self.pingTimer fire];
-    }
-    else {
-        NSLog(@"GBPing: can't start, not pinging. Call setup first");
-    }
+    dispatch_async(self.myQueue, ^{
+        if (self.isPinging) {
+            self.pingTimer = [NSTimer timerWithTimeInterval:self.pingPeriod target:self selector:@selector(pingTick) userInfo:nil repeats:YES];
+            [[NSRunLoop mainRunLoop] addTimer:self.pingTimer forMode:NSRunLoopCommonModes];
+            [self.pingTimer fire];
+        }
+        else {
+            NSLog(@"GBPing: can't start, not pinging. Call setup first");
+        }
+    });
 }
 
 -(void)stop {
-    if (self.isPinging) {
-        self.isPinging = NO;
-        
-        //clean up self
-        self.nextSequenceNumber = 0;
-        [self.pendingPings removeAllObjects];
-        self.pendingPings = nil;
-        for (NSNumber *key in self.timeoutTimers) {
-            NSTimer *timer = self.timeoutTimers[key];
-            [timer invalidate];
+    dispatch_async(self.myQueue, ^{
+        if (self.isPinging) {
+            self.isPinging = NO;
+            
+            //clean up self
+            self.nextSequenceNumber = 0;
+            [self.pendingPings removeAllObjects];
+            self.pendingPings = nil;
+            for (NSNumber *key in self.timeoutTimers) {
+                NSTimer *timer = self.timeoutTimers[key];
+                [timer invalidate];
+            }
+            [self.timeoutTimers removeAllObjects];
+            self.timeoutTimers = nil;
+            
+            //destroy pinger
+            [self.simplePing stop];
+            self.simplePing = nil;
+            
+            //destroy timer
+            [self.pingTimer invalidate];
+            self.pingTimer = nil;
         }
-        [self.timeoutTimers removeAllObjects];
-        self.timeoutTimers = nil;
-        
-        //destroy pinger
-        [self.simplePing stop];
-        self.simplePing = nil;
-        
-        //destroy timer
-        [self.pingTimer invalidate];
-        self.pingTimer = nil;
-    }
-    else {
-        NSLog(@"GBPing: can't stop, not pinging");
-    }
+        else {
+            NSLog(@"GBPing: can't stop, not pinging");
+        }
+    });
 }
-
-//-(void)restart {
-//    if (self.isPinging) {
-//        [self stop];
-//        [self setup];
-//        [self start];
-//    }
-//    else {
-//        NSLog(@"GBPing: can't restart, not pinging");
-//    }
-//}
 
 #pragma mark - ping tick
 
 -(void)pingTick {
-    [self.simplePing sendPingWithData:[self generateDataWithLength:(self.payloadSize)]];
-    
-    self.nextSequenceNumber += 1;
+    l(@"make sure this is on the bg queue: %s", dispatch_queue_get_label(dispatch_get_current_queue()));
+    //send a ping on a background thread
+//    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
+//        @synchronized(self) {//foo
+            [self.simplePing sendPingWithData:[self generateDataWithLength:(self.payloadSize)]];
+            self.nextSequenceNumber += 1;
+//        }
+//    });
 }
 
 #pragma mark - util {
@@ -209,6 +211,8 @@
 #pragma mark - simple ping delegate
 
 -(void)simplePing:(SimplePing *)pinger didReceiveUnexpectedPacket:(NSData *)packet {
+    
+    l(@"make sure this is on the bg queue2: %s", dispatch_queue_get_label(dispatch_get_current_queue()));
     //WARNING: this one infers data about the packet, rather than actually reading it, so it could be wrong in the case where someone sends us an ICMP packet which happens to have the same seq number as one of the packets we were expecting.
 //    NSLog(@"GBPing: unexpected packet");
 
@@ -220,28 +224,48 @@
     newPingSummary.payloadSize = self.payloadSize;
     newPingSummary.status = GBPingStatusFail;
     
-    [self.delegate ping:self didReceiveUnexpectedReplyWithSummary:newPingSummary fromHost:self.host];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.delegate ping:self didReceiveUnexpectedReplyWithSummary:newPingSummary fromHost:self.host];
+    });
 }
 
 -(void)simplePing:(SimplePing *)pinger didFailToSendPacket:(NSData *)packet error:(NSError *)error {
+    
+    l(@"make sure this is on the bg queue3: %s", dispatch_queue_get_label(dispatch_get_current_queue()));
     NSLog(@"GBPing: failed to send packet with error code: %d", error.code);
-    [self.delegate ping:self didFailToSendPingToHost:self.host withSequenceNumber:self.nextSequenceNumber];
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.delegate ping:self didFailToSendPingToHost:self.host withSequenceNumber:self.nextSequenceNumber];
+    });
 }
 
 -(void)simplePing:(SimplePing *)pinger didStartWithAddress:(NSData *)address {
+    
+    l(@"make sure this is on the bg queue4: %s", dispatch_queue_get_label(dispatch_get_current_queue()));
 //    NSLog(@"GBPing: successfully started");
-    [self.delegate pingDidSuccessfullySetup:self];
+    
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.delegate pingDidSuccessfullySetup:self];
+    });
 }
 
 -(void)simplePing:(SimplePing *)pinger didFailWithError:(NSError *)error {
+    
+    l(@"make sure this is on the bg queue5: %s", dispatch_queue_get_label(dispatch_get_current_queue()));
     NSLog(@"GBPing: failed with error code: %d", error.code);
     
     [self stop];//stop the timers etc.//foo this calls stop on an already stopped simpleping, hope thats ok
     
-    [self.delegate ping:self didFailWithError:error];
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.delegate ping:self didFailWithError:error];
+    });
 }
 
 -(void)simplePing:(SimplePing *)pinger didSendPacket:(NSData *)packet {
+    
+    l(@"make sure this is on the bg queue6: %s", dispatch_queue_get_label(dispatch_get_current_queue()));
     //construct ping summary, as much as it can
     GBPingSummary *newPingSummary = [[GBPingSummary alloc] init];
     newPingSummary.host = self.host;
@@ -257,7 +281,10 @@
     //add a fail timer
     NSTimer *timeoutTimer = [NSTimer timerWithTimeInterval:self.timeout repeats:NO withBlock:^{
         newPingSummary.status = GBPingStatusFail;
-        [self.delegate ping:self didTimeoutWithSummary:newPingSummary fromHost:self.host];
+        
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.delegate ping:self didTimeoutWithSummary:newPingSummary fromHost:self.host];
+        });
         
         [self.timeoutTimers removeObjectForKey:@(self.nextSequenceNumber)];
     }];
@@ -267,10 +294,14 @@
     self.timeoutTimers[@(self.nextSequenceNumber)] = timeoutTimer;
     
     //delegate
-    [self.delegate ping:self didSendPingToHost:self.host withSequenceNumber:self.nextSequenceNumber];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.delegate ping:self didSendPingToHost:self.host withSequenceNumber:self.nextSequenceNumber];
+    });
 }
 
 -(void)simplePing:(SimplePing *)pinger didReceivePingResponsePacket:(NSData *)packet withSequenceNumber:(NSUInteger)seqNo {
+    
+    l(@"make sure this is on the bg queue7: %s", dispatch_queue_get_label(dispatch_get_current_queue()));
     //record receive date
     GBPingSummary *pingSummary = (GBPingSummary *)self.pendingPings[@(seqNo)];
     if (pingSummary) {
@@ -288,11 +319,21 @@
         [self.timeoutTimers removeObjectForKey:@(seqNo)];
         
         //notify delegate
-        [self.delegate ping:self didReceiveReplyWithSummary:pingSummary fromHost:self.host];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.delegate ping:self didReceiveReplyWithSummary:pingSummary fromHost:self.host];
+        });
     }
 }
 
 #pragma mark - memory
+
+-(id)init {
+    if (self = [super init]) {
+        self.myQueue = dispatch_queue_create("GBPing queue", NULL);
+    }
+    
+    return self;
+}
 
 -(void)dealloc {
     self.delegate = nil;
@@ -301,6 +342,8 @@
     self.pingTimer = nil;
     self.timeoutTimers = nil;
     self.pendingPings = nil;
+    dispatch_release(self.myQueue);
+    self.myQueue = nil;
 }
 
 @end

@@ -24,7 +24,7 @@
 @property (assign, nonatomic) NSTimeInterval        timeout;
 @property (assign, nonatomic) NSUInteger            payloadSize;
 @property (assign, nonatomic) NSUInteger            ttl;
-@property (assign, nonatomic, readonly) BOOL        isPinging;
+@property (assign, atomic, readonly) BOOL        isPinging;
 
 //-(void)start:(StartupCallback)callback;
 -(void)setup;
