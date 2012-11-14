@@ -120,6 +120,7 @@
         
         //set up SimplePing
         self.simplePing = [SimplePing simplePingWithHostName:self.host];
+        l(@"+1");
         self.simplePing.ttl = self.ttl;
         self.simplePing.delegate = self;
         [self.simplePing start];
@@ -157,8 +158,9 @@
         
         //destroy pinger
         [self.simplePing stop];
-        l(@"destroy SimplePing");
+//        l(@"destroy SimplePing");
         self.simplePing = nil;
+        l(@"-1");
         
         //destroy timer
         [self.pingTimer invalidate];
@@ -303,18 +305,20 @@
 
 #pragma mark - memory
 
-//-(id)init {
-//    if (self = [super init]) {
-//        
-//    }
-//    
-//    return self;
-//}
+-(id)init {
+    if (self = [super init]) {
+        l(@"GBPing init");
+    }
+    
+    return self;
+}
 
 -(void)dealloc {
+    l(@"GBPing dealloc");
     self.delegate = nil;
     self.host = nil;
     self.simplePing = nil;
+    l(@"-1");
     self.pingTimer = nil;
     self.timeoutTimers = nil;
     self.pendingPings = nil;

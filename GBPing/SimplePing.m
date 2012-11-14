@@ -132,6 +132,9 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
     assert( (hostName != nil) == (hostAddress == nil) );
     self = [super init];
     if (self != nil) {
+        
+        l(@"init SimplePing");//foo other init too make sure this is the only one
+        
         self.ttl = 0;
         self->_hostName    = [hostName copy];
         self->_hostAddress = [hostAddress copy];
