@@ -24,8 +24,6 @@
 @property (nonatomic, strong) NSMutableDictionary *pendingPings;
 @property (nonatomic, strong) NSMutableDictionary *timeoutTimers;
 
-//@property (assign, atomic) dispatch_queue_t myQueue;
-
 @end
 
 @implementation GBPing
@@ -36,15 +34,6 @@
 @synthesize pingPeriod = _pingPeriod;
 
 #pragma mark - custom acc
-
-//-(NSMutableDictionary *)pendingPings {
-//    if (!_pendingPings) {
-//        _pendingPings = [[NSMutableDictionary alloc] init];
-//    }
-//    
-//    return _pendingPings;
-//}
-
 
 -(void)setTimeout:(NSTimeInterval)timeout {
     if (self.isPinging) {
@@ -140,13 +129,7 @@
     }
 }
 
-//-(void)start {
-//    [NSThread detachNewThreadSelector:@selector(_start) toTarget:self withObject:nil];
-//}
-
-//-(void)_start {
 -(void)start {
-//    [NSThread currentThread].name = @"BG Thread";
     if (self.isPinging) {
         self.pingTimer = [NSTimer timerWithTimeInterval:self.pingPeriod target:self selector:@selector(pingTick) userInfo:nil repeats:YES];
         [[NSRunLoop currentRunLoop] addTimer:self.pingTimer forMode:NSRunLoopCommonModes];
@@ -174,6 +157,7 @@
         
         //destroy pinger
         [self.simplePing stop];
+        l(@"destroy SimplePing");
         self.simplePing = nil;
         
         //destroy timer
@@ -188,15 +172,12 @@
 #pragma mark - ping tick
 
 -(void)pingTick {
-    NSLog(@"make sure this is bg thread: %@", [NSThread currentThread].name);
+//    NSLog(@"make sure this is main queue12: %s", dispatch_queue_get_label(dispatch_get_current_queue()));
     
-//    l(@"make sure this is on the bg queue: %s", dispatch_queue_get_label(dispatch_get_current_queue()));
     //send a ping on a background thread
 //    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
-//        @synchronized(self) {//foo
-            [self.simplePing sendPingWithData:[self generateDataWithLength:(self.payloadSize)]];
-            self.nextSequenceNumber += 1;
-//        }
+        [self.simplePing sendPingWithData:[self generateDataWithLength:(self.payloadSize)]];
+        self.nextSequenceNumber += 1;
 //    });
 }
 
@@ -213,10 +194,10 @@
 #pragma mark - simple ping delegate
 
 -(void)simplePing:(SimplePing *)pinger didReceiveUnexpectedPacket:(NSData *)packet {
-    
-    NSLog(@"make sure this is bg thread2: %@", [NSThread currentThread].name);
     //WARNING: this one infers data about the packet, rather than actually reading it, so it could be wrong in the case where someone sends us an ICMP packet which happens to have the same seq number as one of the packets we were expecting.
 //    NSLog(@"GBPing: unexpected packet");
+    
+//    NSLog(@"make sure this is bg queue1: %s", dispatch_queue_get_label(dispatch_get_current_queue()));
 
     GBPingSummary *newPingSummary = [[GBPingSummary alloc] init];
     newPingSummary.host = self.host;
@@ -226,48 +207,43 @@
     newPingSummary.payloadSize = self.payloadSize;
     newPingSummary.status = GBPingStatusFail;
     
-//    dispatch_async(dispatch_get_main_queue(), ^{
+    dispatch_async(dispatch_get_main_queue(), ^{
+        //NOTE this is back on the main queue
         [self.delegate ping:self didReceiveUnexpectedReplyWithSummary:newPingSummary fromHost:self.host];
-//    });
+    });
 }
 
 -(void)simplePing:(SimplePing *)pinger didFailToSendPacket:(NSData *)packet error:(NSError *)error {
     
-//    NSLog(@"make sure this is bg thread3: %@", [NSThread currentThread].name);
+//    NSLog(@"make sure this is main queue1: %s", dispatch_queue_get_label(dispatch_get_current_queue()));
     NSLog(@"GBPing: failed to send packet with error code: %d", error.code);
     
-//    dispatch_async(dispatch_get_main_queue(), ^{
-        [self.delegate ping:self didFailToSendPingToHost:self.host withSequenceNumber:self.nextSequenceNumber];
-//    });
+    [self.delegate ping:self didFailToSendPingToHost:self.host withSequenceNumber:self.nextSequenceNumber];
 }
 
 -(void)simplePing:(SimplePing *)pinger didStartWithAddress:(NSData *)address {
     
-//    NSLog(@"make sure this is bg thread4: %@", [NSThread currentThread].name);
+//    NSLog(@"make sure this is main queue2: %s", dispatch_queue_get_label(dispatch_get_current_queue()));
 //    NSLog(@"GBPing: successfully started");
     
     
-//    dispatch_async(dispatch_get_main_queue(), ^{
-        [self.delegate pingDidSuccessfullySetup:self];
-//    });
+    [self.delegate pingDidSuccessfullySetup:self];
 }
 
 -(void)simplePing:(SimplePing *)pinger didFailWithError:(NSError *)error {
     
-//    NSLog(@"make sure this is bg thread5: %@", [NSThread currentThread].name);
+//    NSLog(@"make sure this is main queue3: %s", dispatch_queue_get_label(dispatch_get_current_queue()));
     NSLog(@"GBPing: failed with error code: %d", error.code);
     
     [self stop];//stop the timers etc.//foo this calls stop on an already stopped simpleping, hope thats ok
     
-    
-//    dispatch_async(dispatch_get_main_queue(), ^{
-        [self.delegate ping:self didFailWithError:error];
-//    });
+    [self.delegate ping:self didFailWithError:error];
 }
 
 -(void)simplePing:(SimplePing *)pinger didSendPacket:(NSData *)packet {
     
-//    NSLog(@"make sure this is bg thread6!: %@", [NSThread currentThread].name);
+//    NSLog(@"make sure this is main queue4: %s", dispatch_queue_get_label(dispatch_get_current_queue()));
+    
     //construct ping summary, as much as it can
     GBPingSummary *newPingSummary = [[GBPingSummary alloc] init];
     newPingSummary.host = self.host;
@@ -284,9 +260,7 @@
     NSTimer *timeoutTimer = [NSTimer timerWithTimeInterval:self.timeout repeats:NO withBlock:^{
         newPingSummary.status = GBPingStatusFail;
         
-//        dispatch_async(dispatch_get_main_queue(), ^{
-            [self.delegate ping:self didTimeoutWithSummary:newPingSummary fromHost:self.host];
-//        });
+        [self.delegate ping:self didTimeoutWithSummary:newPingSummary fromHost:self.host];
         
         [self.timeoutTimers removeObjectForKey:@(self.nextSequenceNumber)];
     }];
@@ -296,14 +270,13 @@
     self.timeoutTimers[@(self.nextSequenceNumber)] = timeoutTimer;
     
     //delegate
-//    dispatch_async(dispatch_get_main_queue(), ^{
-        [self.delegate ping:self didSendPingToHost:self.host withSequenceNumber:self.nextSequenceNumber];
-//    });
+    [self.delegate ping:self didSendPingToHost:self.host withSequenceNumber:self.nextSequenceNumber];
 }
 
 -(void)simplePing:(SimplePing *)pinger didReceivePingResponsePacket:(NSData *)packet withSequenceNumber:(NSUInteger)seqNo {
     
-//    NSLog(@"make sure this is bg thread7!: %@", [NSThread currentThread].name);
+//    NSLog(@"make sure this is bg queue3: %s", dispatch_queue_get_label(dispatch_get_current_queue()));
+    
     //record receive date
     GBPingSummary *pingSummary = (GBPingSummary *)self.pendingPings[@(seqNo)];
     if (pingSummary) {
@@ -321,21 +294,22 @@
         [self.timeoutTimers removeObjectForKey:@(seqNo)];
         
         //notify delegate
-//        dispatch_async(dispatch_get_main_queue(), ^{
+        dispatch_async(dispatch_get_main_queue(), ^{
+            //NOTE back on main queue
             [self.delegate ping:self didReceiveReplyWithSummary:pingSummary fromHost:self.host];
-//        });
+        });
     }
 }
 
 #pragma mark - memory
 
--(id)init {
-    if (self = [super init]) {
-//        self.myQueue = dispatch_queue_create("GBPing queue", NULL);
-    }
-    
-    return self;
-}
+//-(id)init {
+//    if (self = [super init]) {
+//        
+//    }
+//    
+//    return self;
+//}
 
 -(void)dealloc {
     self.delegate = nil;
@@ -344,8 +318,6 @@
     self.pingTimer = nil;
     self.timeoutTimers = nil;
     self.pendingPings = nil;
-//    dispatch_release(self.myQueue);
-//    self.myQueue = nil;
 }
 
 @end

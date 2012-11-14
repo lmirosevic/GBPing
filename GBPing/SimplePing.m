@@ -142,6 +142,7 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
 
 - (void)dealloc
 {
+    l(@"dealloc SimplePing");
     // -stop takes care of _host and _socket.
     [self stop];
     assert(self->_host == NULL);
@@ -399,10 +400,12 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
         
         if ( [self isValidPingResponsePacket:packet] ) {
             if ( (self.delegate != nil) && [self.delegate respondsToSelector:@selector(simplePing:didReceivePingResponsePacket:withSequenceNumber:)] ) {
+                //WARNING: THIS exit point is on a bg queue
                 [self.delegate simplePing:self didReceivePingResponsePacket:packet withSequenceNumber:seqNo];
             }
         } else {
             if ( (self.delegate != nil) && [self.delegate respondsToSelector:@selector(simplePing:didReceiveUnexpectedPacket:withSequenceNumber:)] ) {
+                //WARNING: THIS exit point is on a bg queue
                 [self.delegate simplePing:self didReceiveUnexpectedPacket:packet withSequenceNumber:seqNo];
             }
         }
@@ -413,7 +416,10 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
         if (err == 0) {
             err = EPIPE;
         }
-        [self didFailWithError:[NSError errorWithDomain:NSPOSIXErrorDomain code:err userInfo:nil]];
+        
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self didFailWithError:[NSError errorWithDomain:NSPOSIXErrorDomain code:err userInfo:nil]];
+        });
     }
     
     free(buffer);
@@ -477,7 +483,7 @@ static void SocketReadCallback(CFSocketRef s, CFSocketCallBackType type, CFDataR
         [self didFailWithError:[NSError errorWithDomain:NSPOSIXErrorDomain code:err userInfo:nil]];
     } else {
         CFSocketContext     context = {0, (__bridge void *)(self), NULL, NULL, NULL};
-        CFRunLoopSourceRef  rls;
+//        CFRunLoopSourceRef  rls;
         
         // Wrap it in a CFSocket and schedule it on the runloop.
         
@@ -494,12 +500,21 @@ static void SocketReadCallback(CFSocketRef s, CFSocketCallBackType type, CFDataR
         assert( CFSocketGetSocketFlags(self->_socket) & kCFSocketCloseOnInvalidate );
         fd = -1;
         
-        rls = CFSocketCreateRunLoopSource(NULL, self->_socket, 0);
-        assert(rls != NULL);
+//        rls = CFSocketCreateRunLoopSource(NULL, self->_socket, 0);
+//        assert(rls != NULL);
         
-        CFRunLoopAddSource(CFRunLoopGetCurrent(), rls, kCFRunLoopDefaultMode);
+//        CFRunLoopAddSource(CFRunLoopGetCurrent(), rls, kCFRunLoopDefaultMode);
         
-        CFRelease(rls);
+//        CFRelease(rls);
+        
+        
+        dispatch_source_t ds = dispatch_source_create(DISPATCH_SOURCE_TYPE_READ, CFSocketGetNative(self->_socket), 0, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0));
+        dispatch_source_set_event_handler(ds, ^{
+//            l(@"got a packet with GCD");
+            [self readData];
+        });
+        dispatch_resume(ds);
+        
 
         if ( (self.delegate != nil) && [self.delegate respondsToSelector:@selector(simplePing:didStartWithAddress:)] ) {
             [self.delegate simplePing:self didStartWithAddress:self.hostAddress];
