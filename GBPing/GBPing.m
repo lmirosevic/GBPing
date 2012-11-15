@@ -48,7 +48,7 @@
 @property (strong, nonatomic) NSMutableDictionary       *pendingPings;
 @property (strong, nonatomic) NSMutableDictionary       *timeoutTimers;
 
-@property (assign, nonatomic) dispatch_queue_t          myQueue;
+@property (assign, nonatomic) dispatch_queue_t          setupQueue;
 
 @end
 
@@ -138,146 +138,165 @@
 -(void)setupWithBlock:(StartupCallback)callback {
 //    @synchronized(self) {//foo maybe not
     
-        if (!self.isReady) {
+    //error out of its already setup
+    if (self.isReady) {
+        l(@"GBPing: Can't setup, already setup.");
+        
+        //notify about error and return
+        dispatch_async(dispatch_get_main_queue(), ^{
+            callback(NO, nil);
+        });
+        return;
+    }
+    
+    //error out if no host is set
+    if (!self.host) {
+        l(@"GBPing: set host before attempting to start.");
+        
+        //notify about error and return
+        dispatch_async(dispatch_get_main_queue(), ^{
+            callback(NO, nil);
+        });
+        return;
+    }
+    
+    //set up data structs
+    self.nextSequenceNumber = 0;
+    self.pendingPings = [[NSMutableDictionary alloc] init];
+    self.timeoutTimers = [[NSMutableDictionary alloc] init];
+    self.setupQueue = dispatch_queue_create("GBPing setup queue", 0);
+    
+    dispatch_async(self.setupQueue, ^{
+        CFStreamError streamError;
+        
+        self.hostRef = CFHostCreateWithName(NULL, (__bridge CFStringRef)self.host);
+        
+        BOOL success = CFHostStartInfoResolution(self.hostRef, kCFHostAddresses, &streamError);
 
-            //set up data structs
-            self.nextSequenceNumber = 0;
-            self.pendingPings = [[NSMutableDictionary alloc] init];
-            self.timeoutTimers = [[NSMutableDictionary alloc] init];
-            self.myQueue = dispatch_queue_create("GBPing queue", 0);
+        if (!success) {
+            //construct an error
+            NSDictionary *userInfo;
+            NSError *error;
             
-            //foo make sure im not leaking any objects when i error out
+            if (streamError.domain == kCFStreamErrorDomainNetDB) {
+                userInfo = [NSDictionary dictionaryWithObjectsAndKeys:
+                            [NSNumber numberWithInteger:streamError.error], kCFGetAddrInfoFailureKey,
+                            nil
+                            ];
+            }
+            else {
+                userInfo = nil;
+            }
+            error = [NSError errorWithDomain:(NSString *)kCFErrorDomainCFNetwork code:kCFHostErrorUnknown userInfo:userInfo];
             
-            dispatch_async(self.myQueue, ^{
-                CFStreamError streamError;
+            //clean up so far
+            [self stop];
+//            if (self.hostRef) {
+//                CFRelease(self.hostRef);
+//                self.hostRef = nil;
+//            }
+            
+            //notify about error and return
+            dispatch_async(dispatch_get_main_queue(), ^{
+                callback(NO, error);
+            });
+            return;
+        }
+        
+        //get the first IPv4 address
+        Boolean resolved;
+        const struct sockaddr *addrPtr;
+        NSArray *addresses = (__bridge NSArray *)CFHostGetAddressing(self.hostRef, &resolved);
+        if (resolved && (addresses != nil)) {
+            resolved = false;
+            for (NSData *address in addresses) {
+                const struct sockaddr *anAddrPtr = (const struct sockaddr *)[address bytes];
                 
-                if (!self.host) {
-                    l(@"GBPing: set host before attempting to start.");
-                    
-                    //notify about error and return
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        callback(NO, nil);
-                    });
-                    return;
+                if ([address length] >= sizeof(struct sockaddr) && anAddrPtr->sa_family == AF_INET) {
+                    resolved = true;
+                    addrPtr = anAddrPtr;
+                    self.hostAddress = address;
+                    break;
                 }
-                
-                self.hostRef = CFHostCreateWithName(NULL, (__bridge CFStringRef)self.host);
-                
-                BOOL success = CFHostStartInfoResolution(self.hostRef, kCFHostAddresses, &streamError);
+            }
+        }
 
-                if (!success) {
-                    //get an error
-                    NSDictionary *userInfo;
-                    NSError *error;
-                    
-                    if (streamError.domain == kCFStreamErrorDomainNetDB) {
-                        userInfo = [NSDictionary dictionaryWithObjectsAndKeys:
-                                    [NSNumber numberWithInteger:streamError.error], kCFGetAddrInfoFailureKey,
-                                    nil
-                                    ];
-                    }
-                    else {
-                        userInfo = nil;
-                    }
-                    error = [NSError errorWithDomain:(NSString *)kCFErrorDomainCFNetwork code:kCFHostErrorUnknown userInfo:userInfo];
-                    assert(error != nil);
-                    
-                    //notify about error and return
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        callback(NO, error);
-                    });
-                    return;
+        //we can stop host resolution now
+        if (self.hostRef) {
+            CFRelease(self.hostRef);
+            self.hostRef = nil;
+        }
+        
+        //if an error occurred during resolution
+        if (!resolved) {
+            //stop
+            [self stop];
+            
+            //notify about error and return                
+            dispatch_async(dispatch_get_main_queue(), ^{
+                callback(NO, [NSError errorWithDomain:(NSString *)kCFErrorDomainCFNetwork code:kCFHostErrorHostNotFound userInfo:nil]);
+            });
+            return;
+        }
+        
+        //set up socket
+        int err = 0;
+        switch (addrPtr->sa_family) {
+            case AF_INET: {
+                self.socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
+                if (self.socket < 0) {
+                    err = errno;
                 }
-                
-                //get the first IPv4 address
-                Boolean resolved;
-                const struct sockaddr *addrPtr;
-                NSArray *addresses = (__bridge NSArray *)CFHostGetAddressing(self.hostRef, &resolved);
-                if (resolved && (addresses != nil)) {
-                    resolved = false;
-                    for (NSData *address in addresses) {
-                        const struct sockaddr *anAddrPtr = (const struct sockaddr *)[address bytes];
-                        
-                        if ([address length] >= sizeof(struct sockaddr) && anAddrPtr->sa_family == AF_INET) {
-                            resolved = true;
-                            //foo make sure this addrpointer is retained past this scope and that it survives in the send call, and also that i release it when i stop the whole party
-                            addrPtr = anAddrPtr;
-                            self.hostAddress = address;
-                            break;
-                        }
-                    }
-                }
-
-                //we can stop host resolution now
-                if (self.hostRef) {
-                    CFRelease(self.hostRef);
-                    self.hostRef = nil;
-                }
-                
-                //if an error occurred during resolution
-                if (!resolved) {
-                    //notify about error and return                
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        callback(NO, [NSError errorWithDomain:(NSString *)kCFErrorDomainCFNetwork code:kCFHostErrorHostNotFound userInfo:nil]);
-                    });
-                    return;
-                }
-                
-                //set up socket
-                int err = 0;
-                switch (addrPtr->sa_family) {
-                    case AF_INET: {
-                        self.socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
-                        if (self.socket < 0) {
-                            err = errno;
-                        }
-                    } break;
-                    case AF_INET6: {
-                        dispatch_async(dispatch_get_main_queue(), ^{
-                            callback(NO, nil);
-                        });
-                        return;
-                    } break;
-                    default: {
-                        err = EPROTONOSUPPORT;
-                    } break;
-                }
-                
-                //couldnt setup socket
-                if (err) {
-                    //notify about error and close
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        callback(NO, [NSError errorWithDomain:NSPOSIXErrorDomain code:err userInfo:nil]);
-                    });
-                    return;
-                }
-                
-                //set ttl on the socket
-                if (self.ttl) {
-                    setsockopt(self.socket, IPPROTO_IP, IP_TTL, &_ttl, sizeof(NSUInteger));
-                }
-                
-    //                //set up GCD dispatch source
-    //                self.dispatchSource = dispatch_source_create(DISPATCH_SOURCE_TYPE_READ, self.socket, 0, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0));
-    //                dispatch_source_set_event_handler(self.dispatchSource, ^{
-    //                    [self readData];
-    //                });
-    //                dispatch_resume(self.dispatchSource);
-                
-                //we are ready now
-                self.isReady = YES;
-                
-                //notify delegate that we are ready
-                if (self.delegate && [self.delegate respondsToSelector:@selector(simplePing:didStartWithAddress:)]) {
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        callback(YES, nil);
-                    });
-                }
+            } break;
+            case AF_INET6: {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    callback(NO, nil);
+                });
+                return;
+            } break;
+            default: {
+                err = EPROTONOSUPPORT;
+            } break;
+        }
+        
+        //couldnt setup socket
+        if (err) {
+            //clean up so far
+            [self stop];
+//            if (self.socket) {
+//                close(self.socket);
+//                self.socket = 0;
+//            }
+            
+            //notify about error and close
+            dispatch_async(dispatch_get_main_queue(), ^{
+                callback(NO, [NSError errorWithDomain:NSPOSIXErrorDomain code:err userInfo:nil]);
+            });
+            return;
+        }
+        
+        //set ttl on the socket
+        if (self.ttl) {
+            setsockopt(self.socket, IPPROTO_IP, IP_TTL, &_ttl, sizeof(NSUInteger));
+        }
+        
+//                //set up GCD dispatch source
+//                self.dispatchSource = dispatch_source_create(DISPATCH_SOURCE_TYPE_READ, self.socket, 0, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0));
+//                dispatch_source_set_event_handler(self.dispatchSource, ^{
+//                    [self readData];
+//                });
+//                dispatch_resume(self.dispatchSource);
+        
+        //we are ready now
+        self.isReady = YES;
+        
+        //notify delegate that we are ready
+        if (self.delegate && [self.delegate respondsToSelector:@selector(simplePing:didStartWithAddress:)]) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                callback(YES, nil);
             });
         }
-        else {
-            l(@"GBPing: Can't setup, already setup.");
-        }
+    });
 //    }
 }
 
@@ -289,7 +308,7 @@
             NSThread *listenThread = [[NSThread alloc] initWithTarget:self selector:@selector(listenLoop) object:nil];
             listenThread.name = @"listenThread";
 
-            //set up timer that sends packets on a new thread (sendThread)
+            //set up loop that sends packets on a new thread (sendThread)
             NSThread *sendThread = [[NSThread alloc] initWithTarget:self selector:@selector(sendLoop) object:nil];
             sendThread.name = @"sendThread";
             
@@ -300,9 +319,6 @@
         }
 //    }
 }
-
-
-//foo factor out all the calls to didfailwitherror into a common method that cleans up, stops the pinging, closes the sockte, and sends the delegate notification
 
 -(void)listenLoop {
     @autoreleasepool {
@@ -344,8 +360,6 @@
 //                pingSummary.ttl = self.ttl;
 //                pingSummary.payloadSize = self.payloadSize;
                 
-                //foo make sure all of the above are set when the ping is first sent
-                
                 
                 if ([self isValidPingResponsePacket:packet]) {
                     if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didReceiveReplyWithSummary:)] ) {
@@ -386,7 +400,8 @@
                     err = EPIPE;
                 }
                 
-                //foo stop pinging and all of that, close sockets, etc
+                //stop the whole thing
+                [self stop];
                 
                 dispatch_async(dispatch_get_main_queue(), ^{
                     [self.delegate ping:self didFailWithError:[NSError errorWithDomain:NSPOSIXErrorDomain code:err userInfo:nil]];
@@ -394,8 +409,6 @@
             }
             
             free(buffer);
-
-            
             
         }
     }
@@ -469,9 +482,6 @@
         
         // Handle the results of the send.
         NSDate *sendDate = [NSDate date];
-        
-        //foo make sure these delegate calls are sent on the right thread
-        
         
         //construct ping summary, as much as it can
         GBPingSummary *newPingSummary = [[GBPingSummary alloc] init];
@@ -549,44 +559,57 @@
     }
 }
 
--(void)stop {
+-(void)stop {//foo try calling this when its not pinging, like right at the start
 //    @synchronized(self) {
-    if (self.isReady) {
-        if (self.isPinging) {
-            //destroy loop that sends new packets (sendThread)
-            
-            //foo shud put a log here that says the pinging is asked to be stopped
-            self.isPinging = NO;
-            //foo shud put a log here, or inside sendloop to make sure it stopped
+//    if (self.isPinging) {
+        //destroy loop that sends new packets (sendThread)
+        
+        //foo shud put a log here that says the pinging is asked to be stopped
+        self.isPinging = NO;
+        //foo shud put a log here, or inside sendloop to make sure it stopped
+//    }
+    
+//    if (self.isReady) {
+        //destroy listenThread by closing socket (listenThread)
+        if (self.socket) {
+            close(self.socket);
+            self.socket = 0;
         }
         
-        //destroy listenThread by closing socket (listenThread)
-        close(self.socket);
-        self.socket = 0;
+        //just to be safe make sure this one is gone
+        if (self.hostRef) {
+            CFRelease(self.hostRef);
+            self.socket = 0;
+        }
         
         //destroy host
         self.hostAddress = nil;
         
         //destroy queue
-        if (self.myQueue) {
-            dispatch_release(self.myQueue);
-            self.myQueue = nil;
+        if (self.setupQueue) {
+            dispatch_release(self.setupQueue);
+            self.setupQueue = nil;
         }
         
-        //clean up data structures
+        //clean up pendingpings
         [self.pendingPings removeAllObjects];
         self.pendingPings = nil;
         for (NSNumber *key in self.timeoutTimers) {
             NSTimer *timer = self.timeoutTimers[key];
             [timer invalidate];
         }
+        
+        //clean up timeouttimers
         [self.timeoutTimers removeAllObjects];
         self.timeoutTimers = nil;
-    }
-    else {
-        NSLog(@"GBPing: can't stop, not pinging");
         
-    }
+        //reset seq number
+        self.nextSequenceNumber = 0;
+//    }
+//    else {
+//        NSLog(@"GBPing: can't stop, not pinging");
+//    
+//    }
     
 //    }
 }
@@ -748,10 +771,10 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
     self.hostAddress = nil;
     
     //clean up dispatch queue
-    if (self.myQueue) {
+    if (self.setupQueue) {
         //foo check that this actually works
-        dispatch_release(self.myQueue);
-        self.myQueue = nil;
+        dispatch_release(self.setupQueue);
+        self.setupQueue = nil;
     }
     
     if (self.hostRef) {
