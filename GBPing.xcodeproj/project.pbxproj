@@ -13,7 +13,6 @@
 		8ADF26C31647CC1F000240C2 /* GBPing.m in Sources */ = {isa = PBXBuildFile; fileRef = 8ADF26C21647CC1F000240C2 /* GBPing.m */; };
 		8ADF26CC1647CC43000240C2 /* SimplePing.m in Sources */ = {isa = PBXBuildFile; fileRef = 8ADF26CB1647CC43000240C2 /* SimplePing.m */; };
 		8ADF26E21647D4B0000240C2 /* GBPingSummary.m in Sources */ = {isa = PBXBuildFile; fileRef = 8ADF26E11647D4B0000240C2 /* GBPingSummary.m */; };
-		8AE906F416529D300083DD01 /* libGBToolbox.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8AE906EF16529D0A0083DD01 /* libGBToolbox.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -66,7 +65,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8AE906F416529D300083DD01 /* libGBToolbox.a in Frameworks */,
 				8A70AC3D16526C7500409BAF /* CFNetwork.framework in Frameworks */,
 				8ADF26BC1647CC1F000240C2 /* Foundation.framework in Frameworks */,
 			);
@@ -266,6 +264,7 @@
 				HEADER_SEARCH_PATHS = "../**";
 				IPHONEOS_DEPLOYMENT_TARGET = 5.0;
 				ONLY_ACTIVE_ARCH = YES;
+				OTHER_LDFLAGS = "";
 				SDKROOT = iphoneos;
 			};
 			name = Debug;
@@ -286,6 +285,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = "../**";
 				IPHONEOS_DEPLOYMENT_TARGET = 5.0;
+				OTHER_LDFLAGS = "";
 				SDKROOT = iphoneos;
 				VALIDATE_PRODUCT = YES;
 			};

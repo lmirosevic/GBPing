@@ -52,6 +52,8 @@
 
 @property (assign, nonatomic) dispatch_queue_t          setupQueue;
 
+@property (assign, atomic) BOOL                         isStopped;
+
 @end
 
 @implementation GBPing
@@ -166,7 +168,6 @@
     self.nextSequenceNumber = 0;
     self.pendingPings = [[NSMutableDictionary alloc] init];
     self.timeoutTimers = [[NSMutableDictionary alloc] init];
-    self.setupQueue = dispatch_queue_create("GBPing setup queue", 0);
     
     dispatch_async(self.setupQueue, ^{
         CFStreamError streamError;
@@ -297,6 +298,8 @@
             callback(YES, nil);
         });
     });
+    
+    self.isStopped = NO;
 //    }
 }
 
@@ -356,6 +359,7 @@
                 NSNumber *key = @(seqNo);
                 GBPingSummary *pingSummary = (GBPingSummary *)self.pendingPings[key];
                 pingSummary.receiveDate = receiveDate;
+                pingSummary.host = [[self class] sourceAddressInPacket:packet];
 //                pingSummary.sequenceNumber = seqNo;
 //                pingSummary.ttl = self.ttl;
 //                pingSummary.payloadSize = self.payloadSize;
@@ -364,6 +368,7 @@
                 if ([self isValidPingResponsePacket:packet]) {
                     if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didReceiveReplyWithSummary:)] ) {
                         if (pingSummary) {
+                            //override the source address (we might have sent to .255 and 192 replied
                             pingSummary.status = GBPingStatusSuccess;
                             
                             //remove it from pending pings
@@ -400,12 +405,16 @@
                     err = EPIPE;
                 }
                 
+                @synchronized(self) {
+                    if (!self.isStopped) {
+                        dispatch_async(dispatch_get_main_queue(), ^{
+                            [self.delegate ping:self didFailWithError:[NSError errorWithDomain:NSPOSIXErrorDomain code:err userInfo:nil]];
+                        });
+                    }
+                }
+                
                 //stop the whole thing
                 [self stop];
-                
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    [self.delegate ping:self didFailWithError:[NSError errorWithDomain:NSPOSIXErrorDomain code:err userInfo:nil]];
-                });
             }
             
             free(buffer);
@@ -508,9 +517,11 @@
                 newPingSummary.status = GBPingStatusFail;
                 
                 //notify about the failure
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    [self.delegate ping:self didTimeoutWithSummary:newPingSummary];
-                });
+                if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didTimeoutWithSummary::)]) {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        [self.delegate ping:self didTimeoutWithSummary:newPingSummary];
+                    });
+                }
                 
                 //remove the ping from the pending list
                 [self.pendingPings removeObjectForKey:key];
@@ -520,8 +531,6 @@
                 [self.timeoutTimers removeObjectForKey:key];
             }];
             [[NSRunLoop mainRunLoop] addTimer:timeoutTimer forMode:NSRunLoopCommonModes];
-            
-            l(@"got here");
             
             //keep a local ref to it
             self.timeoutTimers[key] = timeoutTimer;
@@ -563,62 +572,52 @@
 }
 
 -(void)stop {//foo try calling this when its not pinging, like right at the start
-//    @synchronized(self) {
-//    if (self.isPinging) {
-        //destroy loop that sends new packets (sendThread)
+    @synchronized(self) {
+        if (!self.isStopped) {
+//            l(@"stopping from thread: %@", [NSThread currentThread].name);
+            
+            //foo shud put a log here that says the pinging is asked to be stopped
+            self.isPinging = NO;
+
+            self.isReady = NO;
         
-        //foo shud put a log here that says the pinging is asked to be stopped
-        self.isPinging = NO;
-        //foo shud put a log here, or inside sendloop to make sure it stopped
-//    }
-    
-//    if (self.isReady) {
-        //destroy listenThread by closing socket (listenThread)
-        if (self.socket) {
-            close(self.socket);
-            self.socket = 0;
+            //destroy listenThread by closing socket (listenThread)
+            if (self.socket) {
+                close(self.socket);
+                self.socket = 0;
+            }
+            
+            //just to be safe make sure this one is gone
+            if (self.hostRef) {
+                CFRelease(self.hostRef);
+                self.socket = 0;
+            }
+            
+            //destroy host
+            self.hostAddress = nil;
+            
+            //clean up pendingpings
+            [self.pendingPings removeAllObjects];
+            self.pendingPings = nil;
+            for (NSNumber *key in self.timeoutTimers) {
+                NSTimer *timer = self.timeoutTimers[key];
+                [timer invalidate];
+            }
+            
+            //clean up timeouttimers
+            [self.timeoutTimers removeAllObjects];
+            self.timeoutTimers = nil;
+            
+            //reset seq number
+            self.nextSequenceNumber = 0;
+            
+            self.isStopped = YES;
         }
-        
-        //just to be safe make sure this one is gone
-        if (self.hostRef) {
-            CFRelease(self.hostRef);
-            self.socket = 0;
-        }
-        
-        //destroy host
-        self.hostAddress = nil;
-        
-        //destroy queue
-        if (self.setupQueue) {
-            dispatch_release(self.setupQueue);
-            self.setupQueue = nil;
-        }
-        
-        //clean up pendingpings
-        [self.pendingPings removeAllObjects];
-        self.pendingPings = nil;
-        for (NSNumber *key in self.timeoutTimers) {
-            NSTimer *timer = self.timeoutTimers[key];
-            [timer invalidate];
-        }
-        
-        //clean up timeouttimers
-        [self.timeoutTimers removeAllObjects];
-        self.timeoutTimers = nil;
-        
-        //reset seq number
-        self.nextSequenceNumber = 0;
-//    }
-//    else {
-//        NSLog(@"GBPing: can't stop, not pinging");
-//    
-//    }
-    
-//    }
+    }
 }
 
 
-#pragma mark - Apple SimplePing data processing methods
+#pragma mark - data processing methods
 
 static uint16_t in_cksum(const void *buffer, size_t bufferLen)
 // This is the standard BSD checksum code, modified to use modern types.
@@ -660,6 +659,23 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
 	answer = (uint16_t) ~sum;   /* truncate to 16 bits */
     
 	return answer;
+}
+
++(NSString *)sourceAddressInPacket:(NSData *)packet {
+// Returns the source address of the IP packet
+    
+    const struct IPHeader   *ipPtr;
+    const uint8_t           *sourceAddress;
+    
+    if ([packet length] >= sizeof(IPHeader)) {
+        ipPtr = (const IPHeader *)[packet bytes];
+
+        sourceAddress = ipPtr->sourceAddress;//dont need to swap byte order those cuz theyre the smallest atomic unit (1 byte)
+        NSString *ipString = [NSString stringWithFormat:@"%d.%d.%d.%d", sourceAddress[0], sourceAddress[1], sourceAddress[2], sourceAddress[3]];
+        
+        return ipString;
+    }
+    else return nil;
 }
 
 + (NSUInteger)icmpHeaderOffsetInPacket:(NSData *)packet
@@ -759,14 +775,18 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
 
 #pragma mark - memory
 
-//-(id)init {
-//    if (self = [super init]) {
-//    }
-//    
-//    return self;
-//}
+-(id)init {
+    if (self = [super init]) {
+        self.setupQueue = dispatch_queue_create("GBPing setup queue", 0);
+        self.isStopped = YES;
+        l(@"GBPing init");
+    }
+    
+    return self;
+}
 
 -(void)dealloc {
+    l(@"GBPing dealloc");
     self.delegate = nil;
     self.host = nil;
     self.timeoutTimers = nil;
