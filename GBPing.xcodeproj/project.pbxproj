@@ -11,7 +11,6 @@
 		8ADF26BC1647CC1F000240C2 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8ADF26BB1647CC1F000240C2 /* Foundation.framework */; };
 		8ADF26C11647CC1F000240C2 /* GBPing.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 8ADF26C01647CC1F000240C2 /* GBPing.h */; };
 		8ADF26C31647CC1F000240C2 /* GBPing.m in Sources */ = {isa = PBXBuildFile; fileRef = 8ADF26C21647CC1F000240C2 /* GBPing.m */; };
-		8ADF26CC1647CC43000240C2 /* SimplePing.m in Sources */ = {isa = PBXBuildFile; fileRef = 8ADF26CB1647CC43000240C2 /* SimplePing.m */; };
 		8ADF26E21647D4B0000240C2 /* GBPingSummary.m in Sources */ = {isa = PBXBuildFile; fileRef = 8ADF26E11647D4B0000240C2 /* GBPingSummary.m */; };
 /* End PBXBuildFile section */
 
@@ -53,8 +52,6 @@
 		8ADF26BF1647CC1F000240C2 /* GBPing-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "GBPing-Prefix.pch"; sourceTree = "<group>"; };
 		8ADF26C01647CC1F000240C2 /* GBPing.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GBPing.h; sourceTree = "<group>"; };
 		8ADF26C21647CC1F000240C2 /* GBPing.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GBPing.m; sourceTree = "<group>"; };
-		8ADF26CA1647CC43000240C2 /* SimplePing.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SimplePing.h; sourceTree = "<group>"; };
-		8ADF26CB1647CC43000240C2 /* SimplePing.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SimplePing.m; sourceTree = "<group>"; };
 		8ADF26E01647D4B0000240C2 /* GBPingSummary.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GBPingSummary.h; sourceTree = "<group>"; };
 		8ADF26E11647D4B0000240C2 /* GBPingSummary.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GBPingSummary.m; sourceTree = "<group>"; };
 		8AE906EA16529D0A0083DD01 /* GBToolbox.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = GBToolbox.xcodeproj; path = "/Users/lm/Dropbox/Projects/Ping Doctor/Ping Doctor iOS/Ping Doctor/../../../Goonbee Modules/GBToolbox/GBToolbox.xcodeproj"; sourceTree = "<absolute>"; };
@@ -103,7 +100,6 @@
 			isa = PBXGroup;
 			children = (
 				8AE906F116529D0F0083DD01 /* Libraries */,
-				8ADF26C91647CC35000240C2 /* Apple SimplePing */,
 				8ADF26CD1647CC49000240C2 /* Source */,
 				8ADF26BE1647CC1F000240C2 /* Supporting Files */,
 			);
@@ -116,15 +112,6 @@
 				8ADF26BF1647CC1F000240C2 /* GBPing-Prefix.pch */,
 			);
 			name = "Supporting Files";
-			sourceTree = "<group>";
-		};
-		8ADF26C91647CC35000240C2 /* Apple SimplePing */ = {
-			isa = PBXGroup;
-			children = (
-				8ADF26CA1647CC43000240C2 /* SimplePing.h */,
-				8ADF26CB1647CC43000240C2 /* SimplePing.m */,
-			);
-			name = "Apple SimplePing";
 			sourceTree = "<group>";
 		};
 		8ADF26CD1647CC49000240C2 /* Source */ = {
@@ -224,7 +211,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				8ADF26C31647CC1F000240C2 /* GBPing.m in Sources */,
-				8ADF26CC1647CC43000240C2 /* SimplePing.m in Sources */,
 				8ADF26E21647D4B0000240C2 /* GBPingSummary.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
