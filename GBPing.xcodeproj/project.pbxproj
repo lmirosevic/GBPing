@@ -47,6 +47,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		8A56803C1654FD2D0096DB72 /* ICMPHeader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ICMPHeader.h; sourceTree = "<group>"; };
 		8A70AC3C16526C7500409BAF /* CFNetwork.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CFNetwork.framework; path = System/Library/Frameworks/CFNetwork.framework; sourceTree = SDKROOT; };
 		8ADF26B81647CC1F000240C2 /* libGBPing.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libGBPing.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		8ADF26BB1647CC1F000240C2 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
@@ -133,6 +134,7 @@
 			children = (
 				8ADF26E01647D4B0000240C2 /* GBPingSummary.h */,
 				8ADF26E11647D4B0000240C2 /* GBPingSummary.m */,
+				8A56803C1654FD2D0096DB72 /* ICMPHeader.h */,
 				8ADF26C01647CC1F000240C2 /* GBPing.h */,
 				8ADF26C21647CC1F000240C2 /* GBPing.m */,
 			);

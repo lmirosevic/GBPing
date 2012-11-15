@@ -8,14 +8,12 @@
 
 #import <Foundation/Foundation.h>
 
-#import "SimplePing.h"
-
 @class GBPingSummary;
 @protocol GBPingDelegate;
 
 typedef void(^StartupCallback)(BOOL success, NSError *error);
 
-@interface GBPing : NSObject <SimplePingDelegate>
+@interface GBPing : NSObject
 
 @property (weak, nonatomic) id<GBPingDelegate>      delegate;
 
@@ -25,8 +23,10 @@ typedef void(^StartupCallback)(BOOL success, NSError *error);
 @property (assign, nonatomic) NSUInteger            payloadSize;
 @property (assign, nonatomic) NSUInteger            ttl;
 @property (assign, atomic, readonly) BOOL           isPinging;
+@property (assign, atomic, readonly) BOOL           isReady;
 
--(void)startWithCallback:(StartupCallback)callback;
+-(void)setupWithBlock:(StartupCallback)callback;
+-(void)startPinging;
 -(void)stop;
 
 @end
@@ -35,7 +35,6 @@ typedef void(^StartupCallback)(BOOL success, NSError *error);
 
 @optional
 
-//-(void)pingDidSuccessfullySetup:(GBPing *)pinger;
 -(void)ping:(GBPing *)pinger didFailWithError:(NSError *)error;
 
 -(void)ping:(GBPing *)pinger didSendPingWithSummary:(GBPingSummary *)summary;
