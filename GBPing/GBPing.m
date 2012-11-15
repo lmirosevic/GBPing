@@ -39,8 +39,7 @@
 
 @property (assign, atomic) int                          socket;
 @property (assign, nonatomic) CFHostRef                 hostRef;
-//@property (assign, nonatomic) struct addrinfo           *addrPointer;
-@property (strong, nonatomic) NSData                    *hostAddress;//foo dealloc this
+@property (strong, nonatomic) NSData                    *hostAddress;
 @property (assign, nonatomic) uint16_t                  identifier;
 
 @property (assign, atomic, readwrite) BOOL              isPinging;
@@ -134,29 +133,21 @@
     }
 }
 
-#pragma mark - public API
+#pragma mark - core pinging methods
 
 -(void)setupWithBlock:(StartupCallback)callback {
 //    @synchronized(self) {//foo maybe not
     
         if (!self.isReady) {
 
-            
             //set up data structs
             self.nextSequenceNumber = 0;
             self.pendingPings = [[NSMutableDictionary alloc] init];
             self.timeoutTimers = [[NSMutableDictionary alloc] init];
-
-            
+            self.myQueue = dispatch_queue_create("GBPing queue", 0);
             
             //foo make sure im not leaking any objects when i error out
             
-            
-            
-            
-            
-            
-
             dispatch_async(self.myQueue, ^{
                 CFStreamError streamError;
                 
@@ -217,7 +208,7 @@
                     }
                 }
 
-                //stop host resolution
+                //we can stop host resolution now
                 if (self.hostRef) {
                     CFRelease(self.hostRef);
                     self.hostRef = nil;
@@ -491,42 +482,39 @@
         newPingSummary.payloadSize = self.payloadSize;
         
         
-        
         //successfully sent
         if ((bytesSent > 0) && (((NSUInteger) bytesSent) == [packet length])) {
             
-            if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didSendPingWithSummary:)]) {
-                newPingSummary.status = GBPingStatusPending;
+            //update the statsus to pending
+            newPingSummary.status = GBPingStatusPending;
+            
+            //add it to pending pings
+            NSNumber *key = @(self.nextSequenceNumber);
+            self.pendingPings[key] = newPingSummary;
+            
+            //add a timeout timer
+            NSTimer *timeoutTimer = [NSTimer timerWithTimeInterval:self.timeout repeats:NO withBlock:^{
+                newPingSummary.status = GBPingStatusFail;
                 
+                //notify about the failure
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self.delegate ping:self didTimeoutWithSummary:newPingSummary];
+                });
                 
-                //        NSNumber *key = @(self.nextSequenceNumber);
-                //
-                //        //add it to pending pings
-                //        self.pendingPings[key] = newPingSummary;
-                //
-                //        //add a fail timer
-                //        NSTimer *timeoutTimer = [NSTimer timerWithTimeInterval:self.timeout repeats:NO withBlock:^{
-                //            newPingSummary.status = GBPingStatusFail;
-                //
-                //            [self.delegate ping:self didTimeoutWithSummary:newPingSummary];
-                //
-                //            [self.pendingPings removeObjectForKey:key];
-                //
-                //            [self.timeoutTimers removeObjectForKey:key];
-                //        }];
-                //        [[NSRunLoop mainRunLoop] addTimer:timeoutTimer forMode:NSRunLoopCommonModes];
-                //        
-                //        //keep a local ref to it
-                //        self.timeoutTimers[key] = timeoutTimer;
-                //        
-                //        //delegate
-                //        [self.delegate ping:self didSendPingToHost:self.host withSequenceNumber:self.nextSequenceNumber];
+                //remove the ping from the pending list
+                [self.pendingPings removeObjectForKey:key];
+                
+                //remove the timer itself from the timers list
+                //foo make sure that the timer list doesnt grow and these removals actually work... try logging the count of the timeoutTimers when stopping the pinger
+                [self.timeoutTimers removeObjectForKey:key];
+            }];
+            [[NSRunLoop mainRunLoop] addTimer:timeoutTimer forMode:NSRunLoopCommonModes];
+            
+            //keep a local ref to it
+            self.timeoutTimers[key] = timeoutTimer;
 
-                
-                
-                
-                
-                
+            //notify delegate about this
+            if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didSendPingWithSummary:)]) {
                 dispatch_async(dispatch_get_main_queue(), ^{
                     [self.delegate ping:self didSendPingWithSummary:newPingSummary];
                 });
@@ -534,47 +522,29 @@
         }
         //failed to send
         else {
-            NSError *error;
-            // Some sort of failure.  Tell the client.
-            
+            //complete the error
             if (err == 0) {
                 err = ENOBUFS;          // This is not a hugely descriptor error, alas.
             }
-            error = [NSError errorWithDomain:NSPOSIXErrorDomain code:err userInfo:nil];
-            if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didFailToSendPingWithSummary:)]) {
-                newPingSummary.status = GBPingStatusFail;
+            
+            //little log
+            NSLog(@"GBPing: failed to send packet with error code: %d", err);
+            
+            //change status
+            newPingSummary.status = GBPingStatusFail;
+            
+            //notify delegate
+            if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didFailToSendPingWithSummary:error:)]) {
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    [self.delegate ping:self didFailToSendPingWithSummary:newPingSummary];
+                    [self.delegate ping:self didFailToSendPingWithSummary:newPingSummary error:[NSError errorWithDomain:NSPOSIXErrorDomain code:err userInfo:nil]];
                 });
             }
         }
         
+        //increment sequence number
         self.nextSequenceNumber += 1;
         
         
-        
-        
-        
-        
-        
-        
-        
-        
-        
-
-
-        
-        
-        
-        
-        
-        
-        
-        
-        
-//        NSLog(@"GBPing: failed to send packet with error code: %d", error.code);
-//        
-//        [self.delegate ping:self didFailToSendPingToHost:self.host withSequenceNumber:self.nextSequenceNumber];
         
     }
 }
@@ -593,6 +563,15 @@
         //destroy listenThread by closing socket (listenThread)
         close(self.socket);
         self.socket = 0;
+        
+        //destroy host
+        self.hostAddress = nil;
+        
+        //destroy queue
+        if (self.myQueue) {
+            dispatch_release(self.myQueue);
+            self.myQueue = nil;
+        }
         
         //clean up data structures
         [self.pendingPings removeAllObjects];
@@ -741,13 +720,7 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
 
 
 
-#pragma mark - simple ping delegate
-
-//-(void)simplePing:(SimplePing *)pinger didFailToSendPacket:(NSData *)packet error:(NSError *)error {
-//    NSLog(@"GBPing: failed to send packet with error code: %d", error.code);
-//    
-//    [self.delegate ping:self didFailToSendPingToHost:self.host withSequenceNumber:self.nextSequenceNumber];
-//}
+#pragma mark - notes
 
 //-(void)simplePing:(SimplePing *)pinger didFailWithError:(NSError *)error {
 //    NSLog(@"GBPing: failed with error code: %d", error.code);
@@ -760,25 +733,30 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
 
 #pragma mark - memory
 
--(id)init {
-    if (self = [super init]) {
-        self.myQueue = dispatch_queue_create("GBPing queue", 0);
-    }
-    
-    return self;
-}
+//-(id)init {
+//    if (self = [super init]) {
+//    }
+//    
+//    return self;
+//}
 
 -(void)dealloc {
     self.delegate = nil;
     self.host = nil;
     self.timeoutTimers = nil;
     self.pendingPings = nil;
+    self.hostAddress = nil;
     
     //clean up dispatch queue
     if (self.myQueue) {
         //foo check that this actually works
         dispatch_release(self.myQueue);
         self.myQueue = nil;
+    }
+    
+    if (self.hostRef) {
+        CFRelease(self.hostRef);
+        self.hostRef = nil;
     }
 }
 

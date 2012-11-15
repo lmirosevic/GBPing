@@ -38,7 +38,7 @@ typedef void(^StartupCallback)(BOOL success, NSError *error);
 -(void)ping:(GBPing *)pinger didFailWithError:(NSError *)error;
 
 -(void)ping:(GBPing *)pinger didSendPingWithSummary:(GBPingSummary *)summary;
--(void)ping:(GBPing *)pinger didFailToSendPingWithSummary:(GBPingSummary *)summary;
+-(void)ping:(GBPing *)pinger didFailToSendPingWithSummary:(GBPingSummary *)summary error:(NSError *)error;
 -(void)ping:(GBPing *)pinger didTimeoutWithSummary:(GBPingSummary *)summary;
 -(void)ping:(GBPing *)pinger didReceiveReplyWithSummary:(GBPingSummary *)summary;
 -(void)ping:(GBPing *)pinger didReceiveUnexpectedReplyWithSummary:(GBPingSummary *)summary;
