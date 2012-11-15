@@ -24,10 +24,9 @@ typedef void(^StartupCallback)(BOOL success, NSError *error);
 @property (assign, nonatomic) NSTimeInterval        timeout;
 @property (assign, nonatomic) NSUInteger            payloadSize;
 @property (assign, nonatomic) NSUInteger            ttl;
-@property (assign, atomic, readonly) BOOL        isPinging;
+@property (assign, atomic, readonly) BOOL           isPinging;
 
--(void)setup;//get rid of this
--(void)start;//add a startup callback to this
+-(void)startWithCallback:(StartupCallback)callback;
 -(void)stop;
 
 @end
@@ -36,11 +35,11 @@ typedef void(^StartupCallback)(BOOL success, NSError *error);
 
 @optional
 
--(void)pingDidSuccessfullySetup:(GBPing *)pinger;
+//-(void)pingDidSuccessfullySetup:(GBPing *)pinger;
 -(void)ping:(GBPing *)pinger didFailWithError:(NSError *)error;
 
--(void)ping:(GBPing *)pinger didSendPingToHost:(NSString *)host withSequenceNumber:(NSUInteger)sequenceNumber;
--(void)ping:(GBPing *)pinger didFailToSendPingToHost:(NSString *)host withSequenceNumber:(NSUInteger)sequenceNumber;
+-(void)ping:(GBPing *)pinger didSendPingWithSummary:(GBPingSummary *)summary;
+-(void)ping:(GBPing *)pinger didFailToSendPingWithSummary:(GBPingSummary *)summary;
 -(void)ping:(GBPing *)pinger didTimeoutWithSummary:(GBPingSummary *)summary;
 -(void)ping:(GBPing *)pinger didReceiveReplyWithSummary:(GBPingSummary *)summary;
 -(void)ping:(GBPing *)pinger didReceiveUnexpectedReplyWithSummary:(GBPingSummary *)summary;

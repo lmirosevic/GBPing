@@ -15,14 +15,27 @@
 
 #import "GBPingSummary.h"
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/types.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+
 @interface GBPing ()
 
-@property (nonatomic, strong) SimplePing *simplePing;
-@property (assign, atomic, readwrite) BOOL isPinging;
-@property (nonatomic, strong) NSTimer *pingTimer;
-@property (assign, nonatomic) NSUInteger nextSequenceNumber;
-@property (nonatomic, strong) NSMutableDictionary *pendingPings;
-@property (nonatomic, strong) NSMutableDictionary *timeoutTimers;
+//@property (nonatomic, strong) SimplePing *simplePing;
+@property (assign, atomic) int                          socket;
+@property (assign, atomic, readwrite) BOOL              isPinging;
+@property (nonatomic, strong) NSTimer                   *pingTimer;
+@property (assign, nonatomic) NSUInteger                nextSequenceNumber;
+@property (nonatomic, strong) NSMutableDictionary       *pendingPings;
+@property (nonatomic, strong) NSMutableDictionary       *timeoutTimers;
 
 @end
 
@@ -106,6 +119,197 @@
         return _pingPeriod;
     }
 }
+
+#pragma mark - public API
+
+-(void)startWithCallback:(StartupCallback)callback {
+//    @synchronized(self) {//foo maybe not
+    
+    if (!self.isPinging) {
+        //resolve host
+        struct addrinfo hints, *servinfo, *p;
+        int rv;
+        
+        memset(&hints, 0, sizeof hints);
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = SOCK_DGRAM;
+        
+        if ((rv = getaddrinfo([self.host UTF8String], BeaconPort, &hints, &servinfo)) != 0) {
+            fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+        }
+        
+        // loop through all the results and make a socket
+        for(p = servinfo; p != NULL; p = p->ai_next) {
+            if ((self.socket = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+                perror("talker: socket");
+                continue;
+            }
+            
+            break;
+        }
+        
+        if (p == NULL) {
+            fprintf(stderr, "talker: failed to bind socket\n");
+        }
+        
+        int yes = 1;
+        //foo might need broadcast here
+        if (setsockopt(self.socket, SOL_SOCKET, SO_NOSIGPIPE, &yes, sizeof(yes)) == -1) {
+            perror("setcolopt so_nosignpipe");
+        }
+        
+        // this call is what allows broadcast packets to be sent:
+        if (setsockopt(self.socket, SOL_SOCKET, SO_BROADCAST, &yes, sizeof(yes)) == -1) {
+            perror("setsockopt (SO_BROADCAST)");
+        }
+        
+        self.connected = YES;
+        self.keepPinging = YES;
+        
+        //start emiting
+        while (self.keepPinging) {
+            [self sendHello];
+            sleep(TickInterval);
+        }
+
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        Boolean             success;
+//        CFHostClientContext context = {0, (__bridge void *)(self), NULL, NULL, NULL};
+//        CFStreamError       streamError;
+        
+        if (!self.host) {
+            l(@"GBPing: set host before attempting to start.");
+            return;
+        }
+        
+        self->_host = CFHostCreateWithName(NULL, (__bridge CFStringRef) self.hostName);
+        assert(self->_host != NULL);
+        
+        CFHostSetClient(self->_host, HostResolveCallback, &context);
+        
+        CFHostScheduleWithRunLoop(self->_host, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
+        
+        //        NSLog(@">CFHostStartInfoResolution");
+        success = CFHostStartInfoResolution(self->_host, kCFHostAddresses, &streamError);
+        //        NSLog(@"<CFHostStartInfoResolution");
+        if ( ! success ) {
+            [self didFailWithHostStreamError:streamError];
+        }
+        
+        
+        //set up socket
+        
+        //call callback with result
+        
+        //go into infinite listenloop on a new thread (listenThread)
+        
+        //set up timer that sends packets on a new thread (sendThread)
+    }
+//    }
+}
+
+-(void)stop {
+//    @synchronized(self) {
+    if (self.isPinging) {
+    
+    
+    
+        //detroy timer that sends new packets (sendThread)
+        
+        //destroy listenThread by closing socket (listenThread)
+    
+    
+    
+    }
+    
+//    }
+}
+
+#pragma mark - convenience
+
+//maybe add a method for setting up and destroying the timer
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #pragma mark - public API
 
@@ -286,13 +490,12 @@
 //    return self;
 //}
 
-//-(void)dealloc {
-//    self.delegate = nil;
-//    self.host = nil;
-//    self.simplePing = nil;
-//    self.pingTimer = nil;
-//    self.timeoutTimers = nil;
-//    self.pendingPings = nil;
-//}
+-(void)dealloc {
+    self.delegate = nil;
+    self.host = nil;
+    self.pingTimer = nil;
+    self.timeoutTimers = nil;
+    self.pendingPings = nil;
+}
 
 @end
