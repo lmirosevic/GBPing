@@ -25,6 +25,8 @@ typedef void(^StartupCallback)(BOOL success, NSError *error);
 @property (assign, atomic, readonly) BOOL           isPinging;
 @property (assign, atomic, readonly) BOOL           isReady;
 
+@property (assign, atomic) BOOL                     debug;
+
 -(void)setupWithBlock:(StartupCallback)callback;
 -(void)startPinging;
 -(void)stop;

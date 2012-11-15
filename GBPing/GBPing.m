@@ -67,7 +67,9 @@
 
 -(void)setTimeout:(NSTimeInterval)timeout {
     if (self.isPinging) {
-        NSLog(@"GBPing: can't set timeout while pinger is running.");
+        if (self.debug) {
+            l(@"GBPing: can't set timeout while pinger is running.");
+        }
     }
     else {
         _timeout = timeout;
@@ -85,7 +87,9 @@
 
 -(void)setTtl:(NSUInteger)ttl {
     if (self.isPinging) {
-        NSLog(@"GBPing: can't set ttl while pinger is running.");
+        if (self.debug) {
+            l(@"GBPing: can't set ttl while pinger is running.");
+        }
     }
     else {
         _ttl = ttl;
@@ -103,7 +107,9 @@
 
 -(void)setPayloadSize:(NSUInteger)payloadSize {
     if (self.isPinging) {
-        NSLog(@"GBPing: can't set payload size while pinger is running.");
+        if (self.debug) {
+            l(@"GBPing: can't set payload size while pinger is running.");
+        }
     }
     else {
         _payloadSize = payloadSize;
@@ -121,7 +127,9 @@
 
 -(void)setPingPeriod:(NSTimeInterval)pingPeriod {
     if (self.isPinging) {
-        NSLog(@"GBPing: can't set pingPeriod while pinger is running.");
+        if (self.debug) {
+            l(@"GBPing: can't set pingPeriod while pinger is running.");
+        }
     }
     else {
         _pingPeriod = pingPeriod;
@@ -142,7 +150,9 @@
 -(void)setupWithBlock:(StartupCallback)callback {
     //error out of its already setup
     if (self.isReady) {
-        l(@"GBPing: Can't setup, already setup.");
+        if (self.debug) {
+            l(@"GBPing: Can't setup, already setup.");
+        }
         
         //notify about error and return
         dispatch_async(dispatch_get_main_queue(), ^{
@@ -153,7 +163,9 @@
     
     //error out if no host is set
     if (!self.host) {
-        l(@"GBPing: set host before attempting to start.");
+        if (self.debug) {
+            l(@"GBPing: set host before attempting to start.");
+        }
         
         //notify about error and return
         dispatch_async(dispatch_get_main_queue(), ^{
@@ -515,7 +527,9 @@
             }
             
             //little log
-            NSLog(@"GBPing: failed to send packet with error code: %d", err);
+            if (self.debug) {
+                l(@"GBPing: failed to send packet with error code: %d", err);
+            }
             
             //change status
             newPingSummary.status = GBPingStatusFail;
@@ -719,14 +733,12 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
     if (self = [super init]) {
         self.setupQueue = dispatch_queue_create("GBPing setup queue", 0);
         self.isStopped = YES;
-//        l(@"GBPing init");
     }
     
     return self;
 }
 
 -(void)dealloc {
-//    l(@"GBPing dealloc");
     self.delegate = nil;
     self.host = nil;
     self.timeoutTimers = nil;
