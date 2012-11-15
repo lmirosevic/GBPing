@@ -11,7 +11,12 @@
 @implementation GBPingSummary
 
 -(NSTimeInterval)rtt {
-    return [self.receiveDate timeIntervalSinceDate:self.sendDate];
+    if (self.sendDate) {
+        return [self.receiveDate timeIntervalSinceDate:self.sendDate];
+    }
+    else {
+        return 0;
+    }
 }
 
 -(id)init {
@@ -26,6 +31,10 @@
     self.host = nil;
     self.sendDate = nil;
     self.receiveDate = nil;
+}
+
+-(NSString *)description {
+    return [NSString stringWithFormat:@"host: %@, seq: %d, status: %d, ttl: %d, payloadSize: %d, sendDate: %@, receiveDate: %@, rtt: %f", self.host, self.sequenceNumber, self.status, self.ttl, self.payloadSize, self.sendDate, self.receiveDate, self.rtt];
 }
 
 @end

@@ -15,6 +15,8 @@
 
 #import "GBPingSummary.h"
 
+//#import "GBToolbox.h"
+
 #if TARGET_OS_EMBEDDED || TARGET_IPHONE_SIMULATOR
     #import <CFNetwork/CFNetwork.h>
 #else
@@ -290,12 +292,10 @@
         //we are ready now
         self.isReady = YES;
         
-        //notify delegate that we are ready
-        if (self.delegate && [self.delegate respondsToSelector:@selector(simplePing:didStartWithAddress:)]) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                callback(YES, nil);
-            });
-        }
+        //notify that we are ready
+        dispatch_async(dispatch_get_main_queue(), ^{
+            callback(YES, nil);
+        });
     });
 //    }
 }
@@ -491,6 +491,7 @@
         newPingSummary.ttl = self.ttl;
         newPingSummary.payloadSize = self.payloadSize;
         
+//        @"hey".isInteger;
         
         //successfully sent
         if ((bytesSent > 0) && (((NSUInteger) bytesSent) == [packet length])) {
@@ -519,6 +520,8 @@
                 [self.timeoutTimers removeObjectForKey:key];
             }];
             [[NSRunLoop mainRunLoop] addTimer:timeoutTimer forMode:NSRunLoopCommonModes];
+            
+            l(@"got here");
             
             //keep a local ref to it
             self.timeoutTimers[key] = timeoutTimer;
