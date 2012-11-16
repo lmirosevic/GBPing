@@ -15,7 +15,7 @@
 
 #import "GBPingSummary.h"
 
-//#import "GBToolbox.h"
+#import "GBToolbox.h"
 
 #if TARGET_OS_EMBEDDED || TARGET_IPHONE_SIMULATOR
     #import <CFNetwork/CFNetwork.h>
@@ -318,99 +318,102 @@
 -(void)listenLoop {
     @autoreleasepool {
         while (self.isPinging) {
-            int                     err;
-            struct sockaddr_storage addr;
-            socklen_t               addrLen;
-            ssize_t                 bytesRead;
-            void *                  buffer;
-            enum { kBufferSize = 65535 };
-            
-            buffer = malloc(kBufferSize);
-            assert(buffer);
-            
-            //read the data.
-            addrLen = sizeof(addr);
-            bytesRead = recvfrom(self.socket, buffer, kBufferSize, 0, (struct sockaddr *)&addr, &addrLen);
-            err = 0;
-            if (bytesRead < 0) {
-                err = errno;
-            }
-            
-            //process the data we read.
-            if (bytesRead > 0) {
-                NSDate *receiveDate = [NSDate date];
-                NSMutableData *packet;
-                
-                packet = [NSMutableData dataWithBytes:buffer length:(NSUInteger) bytesRead];
-                assert(packet);
-                
-                //complete the ping summary
-                const struct ICMPHeader *headerPointer = [[self class] icmpInPacket:packet];
-                NSUInteger seqNo = (NSUInteger)OSSwapBigToHostInt16(headerPointer->sequenceNumber);
-                NSNumber *key = @(seqNo);
-                GBPingSummary *pingSummary = (GBPingSummary *)self.pendingPings[key];
-                pingSummary.receiveDate = receiveDate;
-                pingSummary.host = [[self class] sourceAddressInPacket:packet];
-                
-                if ([self isValidPingResponsePacket:packet]) {
-                    if (pingSummary) {
-                        //override the source address (we might have sent to .255 and 192 replied
-                        pingSummary.status = GBPingStatusSuccess;
-                        
-                        //remove it from pending pings
-                        [self.pendingPings removeObjectForKey:key];
-                        
-                        //invalidate the timeouttimer
-                        NSTimer *timer = self.timeoutTimers[key];
-                        [timer invalidate];
-                        [self.timeoutTimers removeObjectForKey:key];
-                        
-                        
-                        if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didReceiveReplyWithSummary:)] ) {
-                            dispatch_async(dispatch_get_main_queue(), ^{
-                                //notify delegate
-                                [self.delegate ping:self didReceiveReplyWithSummary:pingSummary];
-                            });
-                        }
-                    }
-                }
-                else {
-                    if (pingSummary) {
-                        pingSummary.status = GBPingStatusFail;
-                        if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didReceiveUnexpectedReplyWithSummary:)] ) {
-                            dispatch_async(dispatch_get_main_queue(), ^{
-                                [self.delegate ping:self didReceiveReplyWithSummary:pingSummary];
-                            });
-                        }
-                    }
-                }
-            }
-            else {
-                
-                //we failed to read the data, so shut everything down.
-                if (err == 0) {
-                    err = EPIPE;
-                }
-                
-                @synchronized(self) {
-                    if (!self.isStopped) {
-                        if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didFailWithError:)] ) {
-                            dispatch_async(dispatch_get_main_queue(), ^{
-                                [self.delegate ping:self didFailWithError:[NSError errorWithDomain:NSPOSIXErrorDomain code:err userInfo:nil]];
-                            });
-                        }
-                    }
-                }
-                
-                //stop the whole thing
-                [self stop];
-            }
-            
-            free(buffer);
-            
+            [self listenOnce];
         }
     }
+}
+
+-(void)listenOnce {
+    int                     err;
+    struct sockaddr_storage addr;
+    socklen_t               addrLen;
+    ssize_t                 bytesRead;
+    void *                  buffer;
+    enum { kBufferSize = 65535 };
     
+    buffer = malloc(kBufferSize);
+    assert(buffer);
+    
+    //read the data.
+    addrLen = sizeof(addr);
+    bytesRead = recvfrom(self.socket, buffer, kBufferSize, 0, (struct sockaddr *)&addr, &addrLen);
+    err = 0;
+    if (bytesRead < 0) {
+        err = errno;
+    }
+    
+    //process the data we read.
+    if (bytesRead > 0) {
+        NSDate *receiveDate = [NSDate date];
+        NSMutableData *packet;
+        
+        packet = [NSMutableData dataWithBytes:buffer length:(NSUInteger) bytesRead];
+        assert(packet);
+        
+        //complete the ping summary
+        const struct ICMPHeader *headerPointer = [[self class] icmpInPacket:packet];
+        NSUInteger seqNo = (NSUInteger)OSSwapBigToHostInt16(headerPointer->sequenceNumber);
+        NSNumber *key = @(seqNo);
+        GBPingSummary *pingSummary = (GBPingSummary *)self.pendingPings[key];
+        pingSummary.receiveDate = receiveDate;
+        pingSummary.host = [[self class] sourceAddressInPacket:packet];
+        
+        if ([self isValidPingResponsePacket:packet]) {
+            if (pingSummary) {
+                //override the source address (we might have sent to .255 and 192 replied
+                pingSummary.status = GBPingStatusSuccess;
+                
+                //remove it from pending pings
+                [self.pendingPings removeObjectForKey:key];
+                
+                //invalidate the timeouttimer
+                NSTimer *timer = self.timeoutTimers[key];
+                [timer invalidate];
+                [self.timeoutTimers removeObjectForKey:key];
+                
+                
+                if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didReceiveReplyWithSummary:)] ) {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        //notify delegate
+                        [self.delegate ping:self didReceiveReplyWithSummary:pingSummary];
+                    });
+                }
+            }
+        }
+        else {
+            if (pingSummary) {
+                pingSummary.status = GBPingStatusFail;
+                
+                if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didReceiveUnexpectedReplyWithSummary:)] ) {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        [self.delegate ping:self didReceiveReplyWithSummary:pingSummary];
+                    });
+                }
+            }
+        }
+    }
+    else {
+        
+        //we failed to read the data, so shut everything down.
+        if (err == 0) {
+            err = EPIPE;
+        }
+        
+        @synchronized(self) {
+            if (!self.isStopped) {
+                if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didFailWithError:)] ) {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        [self.delegate ping:self didFailWithError:[NSError errorWithDomain:NSPOSIXErrorDomain code:err userInfo:nil]];
+                    });
+                }
+            }
+        }
+        
+        //stop the whole thing
+        [self stop];
+    }
+    
+    free(buffer);
 }
 
 -(void)sendLoop {
