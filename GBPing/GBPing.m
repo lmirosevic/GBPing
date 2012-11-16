@@ -8,8 +8,8 @@
 
 #define kDefaultPayloadSize 56
 #define kDefaultTTL 49
-#define kDefaultPingPeriod 1
-#define kDefaultTimeout 2
+#define kDefaultPingPeriod 1.0
+#define kDefaultTimeout 2.0
 
 #import "GBPing.h"
 
@@ -417,7 +417,7 @@
     @autoreleasepool {
         while (self.isPinging) {
             [self sendPing];
-            sleep(self.pingPeriod);
+            [NSThread sleepForTimeInterval:self.pingPeriod];
         }
     }
 }

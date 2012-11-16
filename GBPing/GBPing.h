@@ -18,10 +18,10 @@ typedef void(^StartupCallback)(BOOL success, NSError *error);
 @property (weak, nonatomic) id<GBPingDelegate>      delegate;
 
 @property (copy, nonatomic) NSString                *host;
-@property (assign, nonatomic) NSTimeInterval        pingPeriod;
-@property (assign, nonatomic) NSTimeInterval        timeout;
-@property (assign, nonatomic) NSUInteger            payloadSize;
-@property (assign, nonatomic) NSUInteger            ttl;
+@property (assign, atomic) NSTimeInterval           pingPeriod;
+@property (assign, atomic) NSTimeInterval           timeout;
+@property (assign, atomic) NSUInteger               payloadSize;
+@property (assign, atomic) NSUInteger               ttl;
 @property (assign, atomic, readonly) BOOL           isPinging;
 @property (assign, atomic, readonly) BOOL           isReady;
 
