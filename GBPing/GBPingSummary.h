@@ -8,7 +8,7 @@
 
 #import <Foundation/Foundation.h>
 
-@interface GBPingSummary : NSObject
+@interface GBPingSummary : NSObject <NSCopying>
 
 typedef enum {
     GBPingStatusPending,

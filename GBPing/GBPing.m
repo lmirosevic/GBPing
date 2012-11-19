@@ -355,12 +355,13 @@
         NSUInteger seqNo = (NSUInteger)OSSwapBigToHostInt16(headerPointer->sequenceNumber);
         NSNumber *key = @(seqNo);
         GBPingSummary *pingSummary = (GBPingSummary *)self.pendingPings[key];
-        pingSummary.receiveDate = receiveDate;
-        pingSummary.host = [[self class] sourceAddressInPacket:packet];
         
-        if ([self isValidPingResponsePacket:packet]) {
-            if (pingSummary) {
-                //override the source address (we might have sent to .255 and 192 replied
+        if (pingSummary) {
+            if ([self isValidPingResponsePacket:packet]) {
+                //override the source address (we might have sent to google.com and 172.123.213.192 replied
+                pingSummary.receiveDate = receiveDate;
+                pingSummary.host = [[self class] sourceAddressInPacket:packet];
+                
                 pingSummary.status = GBPingStatusSuccess;
                 
                 //remove it from pending pings
@@ -375,22 +376,21 @@
                 if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didReceiveReplyWithSummary:)] ) {
                     dispatch_async(dispatch_get_main_queue(), ^{
                         //notify delegate
-                        [self.delegate ping:self didReceiveReplyWithSummary:pingSummary];
+                        [self.delegate ping:self didReceiveReplyWithSummary:[pingSummary copy]];
                     });
                 }
             }
-        }
-        else {
-            if (pingSummary) {
+            else {
                 pingSummary.status = GBPingStatusFail;
                 
                 if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didReceiveUnexpectedReplyWithSummary:)] ) {
                     dispatch_async(dispatch_get_main_queue(), ^{
-                        [self.delegate ping:self didReceiveReplyWithSummary:pingSummary];
+                        [self.delegate ping:self didReceiveReplyWithSummary:[pingSummary copy]];
                     });
                 }
             }
         }
+        
     }
     else {
         
@@ -476,9 +476,9 @@
         
         //construct ping summary, as much as it can
         GBPingSummary *newPingSummary = [[GBPingSummary alloc] init];
+        newPingSummary.sequenceNumber = self.nextSequenceNumber;
         newPingSummary.host = self.host;
         newPingSummary.sendDate = sendDate;
-        newPingSummary.sequenceNumber = self.nextSequenceNumber;
         newPingSummary.ttl = self.ttl;
         newPingSummary.payloadSize = self.payloadSize;
         
@@ -494,12 +494,13 @@
             
             //add a timeout timer
             NSTimer *timeoutTimer = [NSTimer timerWithTimeInterval:self.timeout repeats:NO withBlock:^{
+
                 newPingSummary.status = GBPingStatusFail;
                 
                 //notify about the failure
                 if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didTimeoutWithSummary:)]) {
                     dispatch_async(dispatch_get_main_queue(), ^{
-                        [self.delegate ping:self didTimeoutWithSummary:newPingSummary];
+                        [self.delegate ping:self didTimeoutWithSummary:[newPingSummary copy]];
                     });
                 }
                 
@@ -518,7 +519,7 @@
             //notify delegate about this
             if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didSendPingWithSummary:)]) {
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    [self.delegate ping:self didSendPingWithSummary:newPingSummary];
+                    [self.delegate ping:self didSendPingWithSummary:[newPingSummary copy]];
                 });
             }
         }
@@ -540,7 +541,7 @@
             //notify delegate
             if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didFailToSendPingWithSummary:error:)]) {
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    [self.delegate ping:self didFailToSendPingWithSummary:newPingSummary error:[NSError errorWithDomain:NSPOSIXErrorDomain code:err userInfo:nil]];
+                    [self.delegate ping:self didFailToSendPingWithSummary:[newPingSummary copy] error:[NSError errorWithDomain:NSPOSIXErrorDomain code:err userInfo:nil]];
                 });
             }
         }
@@ -718,6 +719,8 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
             }
         }
     }
+    
+    l(@"valid: %@", _b(result));
     
     return result;
 }
