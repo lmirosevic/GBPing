@@ -356,40 +356,42 @@
         NSNumber *key = @(seqNo);
         GBPingSummary *pingSummary = (GBPingSummary *)self.pendingPings[key];
         
-        if (pingSummary) {
-            if ([self isValidPingResponsePacket:packet]) {
-                //override the source address (we might have sent to google.com and 172.123.213.192 replied
-                pingSummary.receiveDate = receiveDate;
-                pingSummary.host = [[self class] sourceAddressInPacket:packet];
-                
-                pingSummary.status = GBPingStatusSuccess;
-                
-                //remove it from pending pings
-                [self.pendingPings removeObjectForKey:key];
-                
-                //invalidate the timeouttimer
-                NSTimer *timer = self.timeoutTimers[key];
-                [timer invalidate];
-                [self.timeoutTimers removeObjectForKey:key];
-                
-                
-                if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didReceiveReplyWithSummary:)] ) {
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        //notify delegate
-                        [self.delegate ping:self didReceiveReplyWithSummary:[pingSummary copy]];
-                    });
-                }
-            }
-            else {
-                pingSummary.status = GBPingStatusFail;
-                
-                if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didReceiveUnexpectedReplyWithSummary:)] ) {
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        [self.delegate ping:self didReceiveReplyWithSummary:[pingSummary copy]];
-                    });
-                }
-            }
-        }
+        [self isValidPingResponsePacket:packet];//foo
+//        
+//        if (pingSummary) {
+//            if ([self isValidPingResponsePacket:packet]) {
+//                //override the source address (we might have sent to google.com and 172.123.213.192 replied
+//                pingSummary.receiveDate = receiveDate;
+//                pingSummary.host = [[self class] sourceAddressInPacket:packet];
+//                
+//                pingSummary.status = GBPingStatusSuccess;
+//                
+//                //remove it from pending pings
+//                [self.pendingPings removeObjectForKey:key];
+//                
+//                //invalidate the timeouttimer
+//                NSTimer *timer = self.timeoutTimers[key];
+//                [timer invalidate];
+//                [self.timeoutTimers removeObjectForKey:key];
+//                
+//                
+//                if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didReceiveReplyWithSummary:)] ) {
+//                    dispatch_async(dispatch_get_main_queue(), ^{
+//                        //notify delegate
+//                        [self.delegate ping:self didReceiveReplyWithSummary:[pingSummary copy]];
+//                    });
+//                }
+//            }
+//            else {
+//                pingSummary.status = GBPingStatusFail;
+//                
+//                if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didReceiveUnexpectedReplyWithSummary:)] ) {
+//                    dispatch_async(dispatch_get_main_queue(), ^{
+//                        [self.delegate ping:self didReceiveReplyWithSummary:[pingSummary copy]];
+//                    });
+//                }
+//            }
+//        }
         
     }
     else {
@@ -720,7 +722,7 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
         }
     }
     
-    l(@"valid: %@", _b(result));
+//    l(@"valid: %@, type: %d", _b(result), icmpPtr->type);
     
     return result;
 }
