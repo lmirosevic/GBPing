@@ -29,6 +29,13 @@
 			remoteGlobalIDString = 8AD911B0162D9E2200C9D287;
 			remoteInfo = GBToolbox;
 		};
+		8AF6F4A7165FC65C0036DE6C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8AE906EA16529D0A0083DD01 /* GBToolbox.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 8A0C4E34165FA60C00A990FB;
+			remoteInfo = GBToolboxUnitTests;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -130,6 +137,7 @@
 			isa = PBXGroup;
 			children = (
 				8AE906EF16529D0A0083DD01 /* libGBToolbox.a */,
+				8AF6F4A8165FC65C0036DE6C /* GBToolboxUnitTests.octest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -201,6 +209,13 @@
 			fileType = archive.ar;
 			path = libGBToolbox.a;
 			remoteRef = 8AE906EE16529D0A0083DD01 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		8AF6F4A8165FC65C0036DE6C /* GBToolboxUnitTests.octest */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.cfbundle;
+			path = GBToolboxUnitTests.octest;
+			remoteRef = 8AF6F4A7165FC65C0036DE6C /* PBXContainerItemProxy */;
 			sourceTree = BUILT_PRODUCTS_DIR;
 		};
 /* End PBXReferenceProxy section */
