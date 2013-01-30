@@ -72,6 +72,11 @@ Implement optional delegate methods:
 }
 ```
 
+Demo project
+------------
+
+See: www.github.com/lmirosevic/GBPingDemo
+
 Features
 ------------
 
