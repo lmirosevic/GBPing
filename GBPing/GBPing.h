@@ -8,6 +8,8 @@
 
 #import <Foundation/Foundation.h>
 
+#import "GBPingSummary.h"
+
 @class GBPingSummary;
 @protocol GBPingDelegate;
 

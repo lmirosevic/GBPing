@@ -13,8 +13,6 @@
 
 #import "GBPing.h"
 
-#import "GBPingSummary.h"
-
 #import "GBToolbox.h"
 
 #if TARGET_OS_EMBEDDED || TARGET_IPHONE_SIMULATOR
