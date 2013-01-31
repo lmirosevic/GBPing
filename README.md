@@ -75,7 +75,7 @@ Implement optional delegate methods:
 Demo project
 ------------
 
-See: www.github.com/lmirosevic/GBPingDemo
+See: [github.com/lmirosevic/GBPingDemo](https://github.com/lmirosevic/GBPingDemo)
 
 Features
 ------------
@@ -96,8 +96,7 @@ Dependencies
 
 Static libraries (Add dependency, link, -ObjC linker flag, header search path in superproject):
 
-* GBToolbox
-* GBPing
+* [GBToolbox](https://github.com/lmirosevic/GBToolbox)
 
 System Frameworks (link them in):
 
