@@ -280,7 +280,7 @@
         
         //set ttl on the socket
         if (self.ttl) {
-            setsockopt(self.socket, IPPROTO_IP, IP_TTL, &_ttl, sizeof(NSUInteger));
+            setsockopt(self.socket, IPPROTO_IP, IP_TTL, self.ttl, sizeof(NSUInteger));
         }
         
         //we are ready now
@@ -383,7 +383,7 @@
                 
                 if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didReceiveUnexpectedReplyWithSummary:)] ) {
                     dispatch_async(dispatch_get_main_queue(), ^{
-                        [self.delegate ping:self didReceiveReplyWithSummary:[pingSummary copy]];
+                        [self.delegate ping:self didReceiveUnexpectedReplyWithSummary:[pingSummary copy]];
                     });
                 }
             }
@@ -737,6 +737,7 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
     if (self = [super init]) {
         self.setupQueue = dispatch_queue_create("GBPing setup queue", 0);
         self.isStopped = YES;
+        self.identifier = arc4random();
     }
     
     return self;
