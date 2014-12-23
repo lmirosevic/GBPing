@@ -60,7 +60,7 @@
 #pragma mark - description
 
 -(NSString *)description {
-    return [NSString stringWithFormat:@"host: %@, seq: %d, status: %d, ttl: %d, payloadSize: %d, sendDate: %@, receiveDate: %@, rtt: %f", self.host, self.sequenceNumber, self.status, self.ttl, self.payloadSize, self.sendDate, self.receiveDate, self.rtt];
+    return [NSString stringWithFormat:@"host: %@, seq: %lu, status: %d, ttl: %lu, payloadSize: %lu, sendDate: %@, receiveDate: %@, rtt: %f", self.host, (unsigned long)self.sequenceNumber, self.status, (unsigned long)self.ttl, (unsigned long)self.payloadSize, self.sendDate, self.receiveDate, self.rtt];
 }
 
 @end
