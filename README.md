@@ -1,5 +1,4 @@
-GBPing
-============
+# GBPing ![Version](https://img.shields.io/cocoapods/v/GBPing.svg?style=flat)&nbsp;![License](https://img.shields.io/badge/license-Apache_2-green.svg?style=flat)
 
 Highly accurate ICMP Ping controller for iOS (not based on Apple Sample Code, see "Details" section)
 
@@ -14,16 +13,16 @@ Usage
 First import header
 
 ```objective-c
-#import "GBPing.h"
+#import <GBPing/GBPing.h>
 ```
 
 Basic usage:
 
 ```objective-c
 self.ping = [[GBPing alloc] init];
-self.ping.host = @"192.168.0.116";
+self.ping.host = @"google.com";
 self.ping.delegate = self;
-self.ping.timeout = 1;
+self.ping.timeout = 1.0;
 self.ping.pingPeriod = 0.9;
 
 [self.ping setupWithBlock:^(BOOL success, NSError *error) { //necessary to resolve hostname
@@ -33,13 +32,13 @@ self.ping.pingPeriod = 0.9;
         
         //stop it after 5 seconds
         [NSTimer scheduledTimerWithTimeInterval:5 repeats:NO withBlock:^{
-            l(@"stop it");
-            [_ping stop];
-            _ping = nil;
+            NSLog(@"stop it");
+            [self.ping stop];
+            self.ping = nil;
         }];
     }
     else {
-        l(@"failed to start");
+        NSLog(@"failed to start");
     }
 }];
 ```
@@ -48,27 +47,27 @@ Implement optional delegate methods:
 
 ```objective-c
 -(void)ping:(GBPing *)pinger didReceiveReplyWithSummary:(GBPingSummary *)summary {
-    l(@"REPLY>  %@", summary);
+    NSLog(@"REPLY>  %@", summary);
 }
 
 -(void)ping:(GBPing *)pinger didReceiveUnexpectedReplyWithSummary:(GBPingSummary *)summary {
-    l(@"BREPLY> %@", summary);
+    NSLog(@"BREPLY> %@", summary);
 }
 
 -(void)ping:(GBPing *)pinger didSendPingWithSummary:(GBPingSummary *)summary {
-    l(@"SENT>   %@", summary);
+    NSLog(@"SENT>   %@", summary);
 }
 
 -(void)ping:(GBPing *)pinger didTimeoutWithSummary:(GBPingSummary *)summary {
-    l(@"TIMOUT> %@", summary);
+    NSLog(@"TIMOUT> %@", summary);
 }
 
 -(void)ping:(GBPing *)pinger didFailWithError:(NSError *)error {
-    l(@"FAIL>   %@", error);
+    NSLog(@"FAIL>   %@", error);
 }
 
 -(void)ping:(GBPing *)pinger didFailToSendPingWithSummary:(GBPingSummary *)summary error:(NSError *)error {
-    l(@"FSENT>  %@, %@", summary, error);
+    NSLog(@"FSENT>  %@, %@", summary, error);
 }
 ```
 
@@ -94,19 +93,12 @@ GBPing provides the following info (inside a GBPingSummaryObject exposed as prop
 Dependencies
 ------------
 
-Static libraries (Add dependency, link, -ObjC linker flag, header search path in superproject):
-
 * [GBToolbox](https://github.com/lmirosevic/GBToolbox)
-
-System Frameworks (link them in):
-
-* CFNetwork
-* CoreGraphics
 
 Copyright & License
 ------------
 
-Copyright 2013 Luka Mirosevic
+Copyright 2015 Luka Mirosevic
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this work except in compliance with the License. You may obtain a copy of the License in the LICENSE file, or at:
 
@@ -114,4 +106,3 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 
-[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/lmirosevic/gbping/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
