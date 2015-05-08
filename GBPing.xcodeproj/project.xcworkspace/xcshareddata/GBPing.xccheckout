@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IDESourceControlProjectFavoriteDictionaryKey</key>
+	<false/>
+	<key>IDESourceControlProjectIdentifier</key>
+	<string>77DCE06A-40E3-445F-BDDF-608E5C4632D8</string>
+	<key>IDESourceControlProjectName</key>
+	<string>GBPing</string>
+	<key>IDESourceControlProjectOriginsDictionary</key>
+	<dict>
+		<key>E8FA138CEC44E92587D945BD82A5E73092D3CE91</key>
+		<string>github.com:OliverLetterer/GBPing.git</string>
+	</dict>
+	<key>IDESourceControlProjectPath</key>
+	<string>GBPing.xcodeproj</string>
+	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
+	<dict>
+		<key>E8FA138CEC44E92587D945BD82A5E73092D3CE91</key>
+		<string>../..</string>
+	</dict>
+	<key>IDESourceControlProjectURL</key>
+	<string>github.com:OliverLetterer/GBPing.git</string>
+	<key>IDESourceControlProjectVersion</key>
+	<integer>111</integer>
+	<key>IDESourceControlProjectWCCIdentifier</key>
+	<string>E8FA138CEC44E92587D945BD82A5E73092D3CE91</string>
+	<key>IDESourceControlProjectWCConfigurations</key>
+	<array>
+		<dict>
+			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
+			<string>public.vcs.git</string>
+			<key>IDESourceControlWCCIdentifierKey</key>
+			<string>E8FA138CEC44E92587D945BD82A5E73092D3CE91</string>
+			<key>IDESourceControlWCCName</key>
+			<string>GBPing</string>
+		</dict>
+	</array>
+</dict>
+</plist>
