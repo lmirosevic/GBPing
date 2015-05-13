@@ -8,8 +8,6 @@
 
 #import "GBPing.h"
 
-#import "GBToolbox.h"
-
 #if TARGET_OS_EMBEDDED || TARGET_IPHONE_SIMULATOR
     #import <CFNetwork/CFNetwork.h>
 #else
@@ -70,7 +68,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
     @synchronized(self) {
         if (self.isPinging) {
             if (self.debug) {
-                l(@"GBPing: can't set timeout while pinger is running.");
+                NSLog(@"GBPing: can't set timeout while pinger is running.");
             }
         }
         else {
@@ -94,7 +92,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
     @synchronized(self) {
         if (self.isPinging) {
             if (self.debug) {
-                l(@"GBPing: can't set ttl while pinger is running.");
+                NSLog(@"GBPing: can't set ttl while pinger is running.");
             }
         }
         else {
@@ -118,7 +116,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
     @synchronized(self) {
         if (self.isPinging) {
             if (self.debug) {
-                l(@"GBPing: can't set payload size while pinger is running.");
+                NSLog(@"GBPing: can't set payload size while pinger is running.");
             }
         }
         else {
@@ -142,7 +140,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
     @synchronized(self) {
         if (self.isPinging) {
             if (self.debug) {
-                l(@"GBPing: can't set pingPeriod while pinger is running.");
+                NSLog(@"GBPing: can't set pingPeriod while pinger is running.");
             }
         }
         else {
@@ -168,7 +166,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
     //error out of its already setup
     if (self.isReady) {
         if (self.debug) {
-            l(@"GBPing: Can't setup, already setup.");
+            NSLog(@"GBPing: Can't setup, already setup.");
         }
         
         //notify about error and return
@@ -181,7 +179,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
     //error out if no host is set
     if (!self.host) {
         if (self.debug) {
-            l(@"GBPing: set host before attempting to start.");
+            NSLog(@"GBPing: set host before attempting to start.");
         }
         
         //notify about error and return
@@ -202,7 +200,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
         _hostRef = CFHostCreateWithName(NULL, (__bridge CFStringRef)self.host);
         
         BOOL success = CFHostStartInfoResolution(_hostRef, kCFHostAddresses, &streamError);
-
+        
         if (!success) {
             //construct an error
             NSDictionary *userInfo;
@@ -246,7 +244,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
                 }
             }
         }
-
+        
         //we can stop host resolution now
         if (_hostRef) {
             CFRelease(_hostRef);
@@ -258,7 +256,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             //stop
             [self stop];
             
-            //notify about error and return                
+            //notify about error and return
             dispatch_async(dispatch_get_main_queue(), ^{
                 callback(NO, [NSError errorWithDomain:(NSString *)kCFErrorDomainCFNetwork code:kCFHostErrorHostNotFound userInfo:nil]);
             });
@@ -321,7 +319,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
         //go into infinite listenloop on a new thread (listenThread)
         NSThread *listenThread = [[NSThread alloc] initWithTarget:self selector:@selector(listenLoop) object:nil];
         listenThread.name = @"listenThread";
-
+        
         //set up loop that sends packets on a new thread (sendThread)
         NSThread *sendThread = [[NSThread alloc] initWithTarget:self selector:@selector(sendLoop) object:nil];
         sendThread.name = @"sendThread";
@@ -486,7 +484,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             newPingSummary.ttl = self.ttl;
             newPingSummary.payloadSize = self.payloadSize;
             newPingSummary.status = GBPingStatusPending;
-
+            
             //add it to pending pings
             NSNumber *key = @(self.nextSequenceNumber);
             self.pendingPings[key] = newPingSummary;
@@ -504,7 +502,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             });
             
             //add a timeout timer
-            NSTimer *timeoutTimer = [NSTimer timerWithTimeInterval:self.timeout repeats:NO withBlock:^{
+            dispatch_block_t block = ^{
                 newPingSummary.status = GBPingStatusFail;
                 
                 //notify about the failure
@@ -517,7 +515,9 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
                 //remove the timer itself from the timers list
                 //lm make sure that the timer list doesnt grow and these removals actually work... try logging the count of the timeoutTimers when stopping the pinger
                 [self.timeoutTimers removeObjectForKey:key];
-            }];
+            };
+            
+            NSTimer *timeoutTimer = [NSTimer scheduledTimerWithTimeInterval:self.timeout target:self selector:@selector(_invokeTimeoutCallback:) userInfo:[(id)block copy] repeats:NO];
             [[NSRunLoop mainRunLoop] addTimer:timeoutTimer forMode:NSRunLoopCommonModes];
             
             //keep a local ref to it
@@ -559,7 +559,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             
             //little log
             if (self.debug) {
-                l(@"GBPing: failed to send packet with error code: %d", err);
+                NSLog(@"GBPing: failed to send packet with error code: %d", err);
             }
             
             //change status
@@ -581,9 +581,9 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
     @synchronized(self) {
         if (!self.isStopped) {
             self.isPinging = NO;
-
+            
             self.isReady = NO;
-        
+            
             //destroy listenThread by closing socket (listenThread)
             if (self.socket) {
                 close(self.socket);
@@ -624,54 +624,54 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
 static uint16_t in_cksum(const void *buffer, size_t bufferLen)
 // This is the standard BSD checksum code, modified to use modern types.
 {
-	size_t              bytesLeft;
+    size_t              bytesLeft;
     int32_t             sum;
-	const uint16_t *    cursor;
-	union {
-		uint16_t        us;
-		uint8_t         uc[2];
-	} last;
-	uint16_t            answer;
+    const uint16_t *    cursor;
+    union {
+        uint16_t        us;
+        uint8_t         uc[2];
+    } last;
+    uint16_t            answer;
     
-	bytesLeft = bufferLen;
-	sum = 0;
-	cursor = buffer;
+    bytesLeft = bufferLen;
+    sum = 0;
+    cursor = buffer;
     
-	/*
-	 * Our algorithm is simple, using a 32 bit accumulator (sum), we add
-	 * sequential 16 bit words to it, and at the end, fold back all the
-	 * carry bits from the top 16 bits into the lower 16 bits.
-	 */
-	while (bytesLeft > 1) {
-		sum += *cursor;
+    /*
+     * Our algorithm is simple, using a 32 bit accumulator (sum), we add
+     * sequential 16 bit words to it, and at the end, fold back all the
+     * carry bits from the top 16 bits into the lower 16 bits.
+     */
+    while (bytesLeft > 1) {
+        sum += *cursor;
         cursor += 1;
-		bytesLeft -= 2;
-	}
+        bytesLeft -= 2;
+    }
     
-	/* mop up an odd byte, if necessary */
-	if (bytesLeft == 1) {
-		last.uc[0] = * (const uint8_t *) cursor;
-		last.uc[1] = 0;
-		sum += last.us;
-	}
+    /* mop up an odd byte, if necessary */
+    if (bytesLeft == 1) {
+        last.uc[0] = * (const uint8_t *) cursor;
+        last.uc[1] = 0;
+        sum += last.us;
+    }
     
-	/* add back carry outs from top 16 bits to low 16 bits */
-	sum = (sum >> 16) + (sum & 0xffff);	/* add hi 16 to low 16 */
-	sum += (sum >> 16);			/* add carry */
-	answer = (uint16_t) ~sum;   /* truncate to 16 bits */
+    /* add back carry outs from top 16 bits to low 16 bits */
+    sum = (sum >> 16) + (sum & 0xffff);	/* add hi 16 to low 16 */
+    sum += (sum >> 16);			/* add carry */
+    answer = (uint16_t) ~sum;   /* truncate to 16 bits */
     
-	return answer;
+    return answer;
 }
 
 +(NSString *)sourceAddressInPacket:(NSData *)packet {
-// Returns the source address of the IP packet
+    // Returns the source address of the IP packet
     
     const struct IPHeader   *ipPtr;
     const uint8_t           *sourceAddress;
     
     if ([packet length] >= sizeof(IPHeader)) {
         ipPtr = (const IPHeader *)[packet bytes];
-
+        
         sourceAddress = ipPtr->sourceAddress;//dont need to swap byte order those cuz theyre the smallest atomic unit (1 byte)
         NSString *ipString = [NSString stringWithFormat:@"%d.%d.%d.%d", sourceAddress[0], sourceAddress[1], sourceAddress[2], sourceAddress[3]];
         
@@ -746,7 +746,7 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
         }
     }
     
-//    l(@"valid: %@, type: %d", _b(result), icmpPtr->type);
+    //    NSLog(@"valid: %@, type: %d", _b(result), icmpPtr->type);
     
     return result;
 }
@@ -757,6 +757,14 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
     memset(tempBuffer, 7, length);
     
     return [[NSData alloc] initWithBytes:tempBuffer length:length];
+}
+
+- (void)_invokeTimeoutCallback:(NSTimer *)timer
+{
+    dispatch_block_t callback = timer.userInfo;
+    if (callback) {
+        callback();
+    }
 }
 
 #pragma mark - memory

@@ -10,6 +10,4 @@ Pod::Spec.new do |s|
   s.source_files  = 'GBPing/*.{h,m}'
   s.public_header_files = 'GBPing/*.h'
   s.requires_arc = true
-
-  s.dependency 'GBToolbox'
 end
