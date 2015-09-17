@@ -434,6 +434,13 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
         while (self.isPinging) {
             [self sendPing];
             [NSThread sleepForTimeInterval:self.pingPeriod];
+            
+            NSTimeInterval runUntil = CFAbsoluteTimeGetCurrent() + self.pingPeriod;
+            NSTimeInterval time = 0;
+            while (runUntil > time) {
+                [[NSRunLoop currentRunLoop] runUntilDate:[NSDate distantFuture]];
+                time = CFAbsoluteTimeGetCurrent();
+            }
         }
     }
 }
