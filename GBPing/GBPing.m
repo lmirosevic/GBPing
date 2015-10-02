@@ -47,7 +47,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
 @property (strong, nonatomic) NSMutableDictionary       *pendingPings;
 @property (strong, nonatomic) NSMutableDictionary       *timeoutTimers;
 
-@property (assign, nonatomic) dispatch_queue_t          setupQueue;
+@property (strong, nonatomic) dispatch_queue_t          setupQueue;
 
 @property (assign, atomic) BOOL                         isStopped;
 
@@ -366,6 +366,18 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
         packet = [NSMutableData dataWithBytes:buffer length:(NSUInteger) bytesRead];
         assert(packet);
         
+        // Ignore packets not sent from me
+        const struct sockaddr *hostAddrPtr = (const struct sockaddr *)[self.hostAddress bytes];
+        NSString *hostAddrIPString = [NSString stringWithFormat:@"%d.%d.%d.%d", (uint8_t)hostAddrPtr->sa_data[2],
+                                                                                (uint8_t)hostAddrPtr->sa_data[3],
+                                                                                (uint8_t)hostAddrPtr->sa_data[4],
+                                                                                (uint8_t)hostAddrPtr->sa_data[5]];
+       
+        if (![hostAddrIPString isEqualToString:[[self class] sourceAddressInPacket:packet]]) {
+            NSLog(@"\n\nsent with: %@ - recieved: %@ --> NOT MINE --> return", self.host, [[self class] sourceAddressInPacket:packet]);
+            return;
+        }
+        
         //complete the ping summary
         const struct ICMPHeader *headerPointer = [[self class] icmpInPacket:packet];
         NSUInteger seqNo = (NSUInteger)OSSwapBigToHostInt16(headerPointer->sequenceNumber);
@@ -376,7 +388,8 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             if ([self isValidPingResponsePacket:packet]) {
                 //override the source address (we might have sent to google.com and 172.123.213.192 replied)
                 pingSummary.receiveDate = receiveDate;
-                pingSummary.host = [[self class] sourceAddressInPacket:packet];
+                pingSummary.receivedHost = [[self class] sourceAddressInPacket:packet];
+                pingSummary.sentHost = self.host;
                 
                 pingSummary.status = GBPingStatusSuccess;
                 
@@ -486,7 +499,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             
             //construct ping summary, as much as it can
             newPingSummary.sequenceNumber = self.nextSequenceNumber;
-            newPingSummary.host = self.host;
+            newPingSummary.sentHost = self.host;
             newPingSummary.sendDate = sendDate;
             newPingSummary.ttl = self.ttl;
             newPingSummary.payloadSize = self.payloadSize;
@@ -778,7 +791,8 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
 
 -(id)init {
     if (self = [super init]) {
-        self.setupQueue = dispatch_queue_create("GBPing setup queue", 0);
+        NSString *queueName = [NSString stringWithFormat:@"GBPing setup queue %d", (uint16_t)arc4random()];
+        self.setupQueue = dispatch_queue_create([queueName UTF8String], 0);
         self.isStopped = YES;
         self.identifier = arc4random();
     }
@@ -796,7 +810,6 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
     //clean up dispatch queue
     if (self.setupQueue) {
         //foo check that this actually works
-        dispatch_release(self.setupQueue);
         self.setupQueue = nil;
     }
     
