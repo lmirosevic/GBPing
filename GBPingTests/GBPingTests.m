@@ -21,26 +21,22 @@
 
 - (void)setUp {
     [super setUp];
-    // Put setup code here. This method is called before the invocation of each test method in the class.
+
     self.ping = [[GBPing alloc] init];
     self.ping.host = @"google.com";
     self.ping.delegate = self;
     self.ping.timeout = 1.0;
     self.ping.pingPeriod = 0.9;
-    
-    
 }
 
 - (void)tearDown {
-    // Put teardown code here. This method is called after the invocation of each test method in the class.
     [super tearDown];
     
     self.ping.delegate = nil;
     self.ping = nil;
 }
 
-- (void)testPing
-{
+- (void)testPing {
     XCTestExpectation *exp = [self expectationWithDescription:@"ping Async timeout. "];
     
     [self.ping setupWithBlock:^(BOOL success, NSError *error) { //necessary to resolve hostname
@@ -74,52 +70,30 @@
     }];
 }
 
-
--(void)ping:(GBPing *)pinger didFailWithError:(NSError *)error
-{
+- (void)ping:(GBPing *)pinger didFailWithError:(NSError *)error {
     NSLog(@"********* didFailWithError : %@", error);
 }
 
--(void)ping:(GBPing *)pinger didSendPingWithSummary:(GBPingSummary *)summary
-{
+- (void)ping:(GBPing *)pinger didSendPingWithSummary:(GBPingSummary *)summary {
     NSLog(@"********* didSendPingWithSummary : %@", summary);
-    
 }
 
--(void)ping:(GBPing *)pinger didFailToSendPingWithSummary:(GBPingSummary *)summary error:(NSError *)error
-{
+- (void)ping:(GBPing *)pinger didFailToSendPingWithSummary:(GBPingSummary *)summary error:(NSError *)error {
     NSLog(@"********* didFailToSendPingWithSummary : %@", error);
-    
 }
 
--(void)ping:(GBPing *)pinger didTimeoutWithSummary:(GBPingSummary *)summary
-{
-    
+- (void)ping:(GBPing *)pinger didTimeoutWithSummary:(GBPingSummary *)summary {
     NSLog(@"********* didTimeoutWithSummary : %@", summary);
 }
 
--(void)ping:(GBPing *)pinger didReceiveReplyWithSummary:(GBPingSummary *)summary
-{
+- (void)ping:(GBPing *)pinger didReceiveReplyWithSummary:(GBPingSummary *)summary {
     
     NSLog(@"********* didReceiveReplyWithSummary : %@", summary);
 }
 
--(void)ping:(GBPing *)pinger didReceiveUnexpectedReplyWithSummary:(GBPingSummary *)summary
-{
+- (void)ping:(GBPing *)pinger didReceiveUnexpectedReplyWithSummary:(GBPingSummary *)summary {
     NSLog(@"********* didReceiveUnexpectedReplyWithSummary : %@", summary);
     
 }
 
-//- (void)testExample {
-//    // This is an example of a functional test case.
-//    XCTAssert(YES, @"Pass");
-//}
-//
-//- (void)testPerformanceExample {
-//    // This is an example of a performance test case.
-//    [self measureBlock:^{
-//        // Put the code you want to measure the time of here.
-//    }];
-//}
-//
 @end
