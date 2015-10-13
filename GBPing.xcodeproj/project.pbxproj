@@ -7,12 +7,24 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		49E831821B68BD8F00672E0D /* GBPingTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 49E831811B68BD8F00672E0D /* GBPingTests.m */; };
+		49E831831B68BD8F00672E0D /* libGBPing.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8ADF26B81647CC1F000240C2 /* libGBPing.a */; };
 		8A70AC3D16526C7500409BAF /* CFNetwork.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8A70AC3C16526C7500409BAF /* CFNetwork.framework */; };
 		8ADF26BC1647CC1F000240C2 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8ADF26BB1647CC1F000240C2 /* Foundation.framework */; };
 		8ADF26C11647CC1F000240C2 /* GBPing.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 8ADF26C01647CC1F000240C2 /* GBPing.h */; };
 		8ADF26C31647CC1F000240C2 /* GBPing.m in Sources */ = {isa = PBXBuildFile; fileRef = 8ADF26C21647CC1F000240C2 /* GBPing.m */; };
 		8ADF26E21647D4B0000240C2 /* GBPingSummary.m in Sources */ = {isa = PBXBuildFile; fileRef = 8ADF26E11647D4B0000240C2 /* GBPingSummary.m */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		49E831841B68BD8F00672E0D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8ADF26AF1647CC1F000240C2 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8ADF26B71647CC1F000240C2;
+			remoteInfo = GBPing;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		8ADF26B61647CC1F000240C2 /* CopyFiles */ = {
@@ -28,6 +40,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		49E8317D1B68BD8F00672E0D /* GBPingTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GBPingTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		49E831801B68BD8F00672E0D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		49E831811B68BD8F00672E0D /* GBPingTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GBPingTests.m; sourceTree = "<group>"; };
 		8A56803C1654FD2D0096DB72 /* ICMPHeader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ICMPHeader.h; sourceTree = "<group>"; };
 		8A70AC3C16526C7500409BAF /* CFNetwork.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CFNetwork.framework; path = System/Library/Frameworks/CFNetwork.framework; sourceTree = SDKROOT; };
 		8ADF26B81647CC1F000240C2 /* libGBPing.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libGBPing.a; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -40,6 +55,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		49E8317A1B68BD8F00672E0D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				49E831831B68BD8F00672E0D /* libGBPing.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8ADF26B51647CC1F000240C2 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -52,10 +75,28 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		49E8317E1B68BD8F00672E0D /* GBPingTests */ = {
+			isa = PBXGroup;
+			children = (
+				49E831811B68BD8F00672E0D /* GBPingTests.m */,
+				49E8317F1B68BD8F00672E0D /* Supporting Files */,
+			);
+			path = GBPingTests;
+			sourceTree = "<group>";
+		};
+		49E8317F1B68BD8F00672E0D /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				49E831801B68BD8F00672E0D /* Info.plist */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
 		8ADF26AD1647CC1F000240C2 = {
 			isa = PBXGroup;
 			children = (
 				8ADF26BD1647CC1F000240C2 /* GBPing */,
+				49E8317E1B68BD8F00672E0D /* GBPingTests */,
 				8ADF26BA1647CC1F000240C2 /* Frameworks */,
 				8ADF26B91647CC1F000240C2 /* Products */,
 			);
@@ -65,6 +106,7 @@
 			isa = PBXGroup;
 			children = (
 				8ADF26B81647CC1F000240C2 /* libGBPing.a */,
+				49E8317D1B68BD8F00672E0D /* GBPingTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -110,6 +152,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		49E8317C1B68BD8F00672E0D /* GBPingTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 49E831861B68BD8F00672E0D /* Build configuration list for PBXNativeTarget "GBPingTests" */;
+			buildPhases = (
+				49E831791B68BD8F00672E0D /* Sources */,
+				49E8317A1B68BD8F00672E0D /* Frameworks */,
+				49E8317B1B68BD8F00672E0D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				49E831851B68BD8F00672E0D /* PBXTargetDependency */,
+			);
+			name = GBPingTests;
+			productName = GBPingTests;
+			productReference = 49E8317D1B68BD8F00672E0D /* GBPingTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		8ADF26B71647CC1F000240C2 /* GBPing */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 8ADF26C61647CC1F000240C2 /* Build configuration list for PBXNativeTarget "GBPing" */;
@@ -135,6 +195,11 @@
 			attributes = {
 				LastUpgradeCheck = 0450;
 				ORGANIZATIONNAME = Goonbee;
+				TargetAttributes = {
+					49E8317C1B68BD8F00672E0D = {
+						CreatedOnToolsVersion = 6.4;
+					};
+				};
 			};
 			buildConfigurationList = 8ADF26B21647CC1F000240C2 /* Build configuration list for PBXProject "GBPing" */;
 			compatibilityVersion = "Xcode 3.2";
@@ -149,11 +214,30 @@
 			projectRoot = "";
 			targets = (
 				8ADF26B71647CC1F000240C2 /* GBPing */,
+				49E8317C1B68BD8F00672E0D /* GBPingTests */,
 			);
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		49E8317B1B68BD8F00672E0D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
+		49E831791B68BD8F00672E0D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				49E831821B68BD8F00672E0D /* GBPingTests.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8ADF26B41647CC1F000240C2 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -165,7 +249,85 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		49E831851B68BD8F00672E0D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8ADF26B71647CC1F000240C2 /* GBPing */;
+			targetProxy = 49E831841B68BD8F00672E0D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		49E831871B68BD8F00672E0D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(SDKROOT)/Developer/Library/Frameworks",
+					"$(inherited)",
+				);
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				HEADER_SEARCH_PATHS = ..;
+				INFOPLIST_FILE = GBPingTests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 8.4;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				MTL_ENABLE_DEBUG_INFO = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		49E831881B68BD8F00672E0D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(SDKROOT)/Developer/Library/Frameworks",
+					"$(inherited)",
+				);
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				HEADER_SEARCH_PATHS = ..;
+				INFOPLIST_FILE = GBPingTests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 8.4;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				MTL_ENABLE_DEBUG_INFO = NO;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 		8ADF26C41647CC1F000240C2 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -220,10 +382,11 @@
 		8ADF26C71647CC1F000240C2 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
 				DSTROOT = /tmp/GBPing.dst;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "GBPing/GBPing-Prefix.pch";
-				HEADER_SEARCH_PATHS = "../**";
+				HEADER_SEARCH_PATHS = ..;
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -233,10 +396,11 @@
 		8ADF26C81647CC1F000240C2 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
 				DSTROOT = /tmp/GBPing.dst;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "GBPing/GBPing-Prefix.pch";
-				HEADER_SEARCH_PATHS = "../**";
+				HEADER_SEARCH_PATHS = ..;
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -246,6 +410,14 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		49E831861B68BD8F00672E0D /* Build configuration list for PBXNativeTarget "GBPingTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				49E831871B68BD8F00672E0D /* Debug */,
+				49E831881B68BD8F00672E0D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+		};
 		8ADF26B21647CC1F000240C2 /* Build configuration list for PBXProject "GBPing" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
