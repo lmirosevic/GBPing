@@ -44,7 +44,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
 @property (assign, atomic, readwrite) BOOL              isPinging;
 @property (assign, atomic, readwrite) BOOL              isReady;
 @property (assign, nonatomic) NSUInteger                nextSequenceNumber;
-@property (strong, nonatomic) NSMutableDictionary       *pendingPings;
+@property (strong, atomic) NSMutableDictionary          *pendingPings;
 @property (strong, nonatomic) NSMutableDictionary       *timeoutTimers;
 
 @property (strong, nonatomic) dispatch_queue_t          setupQueue;
