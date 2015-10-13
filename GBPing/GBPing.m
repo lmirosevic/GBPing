@@ -47,7 +47,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
 @property (strong, nonatomic) NSMutableDictionary       *pendingPings;
 @property (strong, nonatomic) NSMutableDictionary       *timeoutTimers;
 
-@property (assign, nonatomic) dispatch_queue_t          setupQueue;
+@property (strong, nonatomic) dispatch_queue_t          setupQueue;
 
 @property (assign, atomic) BOOL                         isStopped;
 
@@ -791,13 +791,6 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
     self.timeoutTimers = nil;
     self.pendingPings = nil;
     self.hostAddress = nil;
-    
-    //clean up dispatch queue
-    if (self.setupQueue) {
-        //foo check that this actually works
-        dispatch_release(self.setupQueue);
-        self.setupQueue = nil;
-    }
     
     //clean up socket to be sure
     if (self.socket) {
