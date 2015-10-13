@@ -93,7 +93,7 @@ GBPing provides the following info (inside a GBPingSummaryObject exposed as prop
 Dependencies
 ------------
 
-* [GBToolbox](https://github.com/lmirosevic/GBToolbox)
+None
 
 Copyright & License
 ------------
