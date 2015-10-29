@@ -196,10 +196,19 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
     
     dispatch_async(self.setupQueue, ^{
         CFStreamError streamError;
+        BOOL success;
         
         _hostRef = CFHostCreateWithName(NULL, (__bridge CFStringRef)self.host);
         
-        BOOL success = CFHostStartInfoResolution(_hostRef, kCFHostAddresses, &streamError);
+        /*
+         * CFHostCreateWithName will return a null result in certain cases.
+         * CFHostStartInfoResolution will return YES if _hostRef is null.
+         */
+        if (_hostRef!=nil && _hostRef!=NULL && _hostRef) {
+            success = CFHostStartInfoResolution(_hostRef, kCFHostAddresses, &streamError);
+        } else {
+            success = NO;
+        }        
         
         if (!success) {
             //construct an error
