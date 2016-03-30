@@ -536,7 +536,9 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             [[NSRunLoop mainRunLoop] addTimer:timeoutTimer forMode:NSRunLoopCommonModes];
             
             //keep a local ref to it
-            self.timeoutTimers[key] = timeoutTimer;
+            if (self.timeoutTimers) {
+                self.timeoutTimers[key] = timeoutTimer;
+            }
             
             //notify delegate about this
             if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didSendPingWithSummary:)]) {
