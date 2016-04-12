@@ -442,11 +442,13 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
     @autoreleasepool {
         while (self.isPinging) {
             [self sendPing];
-            
+          
             NSTimeInterval runUntil = CFAbsoluteTimeGetCurrent() + self.pingPeriod;
             NSTimeInterval time = 0;
             while (runUntil > time) {
-                [[NSRunLoop currentRunLoop] runUntilDate:[NSDate distantFuture]];
+                NSDate *runUntilDate = [NSDate dateWithTimeIntervalSinceReferenceDate:runUntil];
+                [[NSRunLoop currentRunLoop] runUntilDate:runUntilDate];
+        
                 time = CFAbsoluteTimeGetCurrent();
             }
         }
@@ -455,7 +457,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
 
 -(void)sendPing {
     if (self.isPinging) {
-        
+      
         int err;
         NSMutableData *packet;
         ICMPHeader *icmpPtr;
