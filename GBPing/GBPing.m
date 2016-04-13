@@ -54,8 +54,6 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
 @end
 
 @implementation GBPing {
-    CFHostRef                                           _hostRef;
-    
     NSUInteger                                          _payloadSize;
     NSUInteger                                          _ttl;
     NSTimeInterval                                      _timeout;
@@ -198,14 +196,14 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
         CFStreamError streamError;
         BOOL success;
         
-        _hostRef = CFHostCreateWithName(NULL, (__bridge CFStringRef)self.host);
+        CFHostRef hostRef = CFHostCreateWithName(NULL, (__bridge CFStringRef)self.host);
         
         /*
          * CFHostCreateWithName will return a null result in certain cases.
          * CFHostStartInfoResolution will return YES if _hostRef is null.
          */
-        if (_hostRef!=nil && _hostRef!=NULL && _hostRef) {
-            success = CFHostStartInfoResolution(_hostRef, kCFHostAddresses, &streamError);
+        if (hostRef) {
+            success = CFHostStartInfoResolution(hostRef, kCFHostAddresses, &streamError);
         } else {
             success = NO;
         }        
@@ -233,13 +231,18 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             dispatch_async(dispatch_get_main_queue(), ^{
                 callback(NO, error);
             });
+          
+            //just incase
+            if (hostRef) {
+              CFRelease(hostRef);
+            }
             return;
         }
         
         //get the first IPv4 address
         Boolean resolved;
         const struct sockaddr *addrPtr;
-        NSArray *addresses = (__bridge NSArray *)CFHostGetAddressing(_hostRef, &resolved);
+        NSArray *addresses = (__bridge NSArray *)CFHostGetAddressing(hostRef, &resolved);
         if (resolved && (addresses != nil)) {
             resolved = false;
             for (NSData *address in addresses) {
@@ -255,9 +258,8 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
         }
         
         //we can stop host resolution now
-        if (_hostRef) {
-            CFRelease(_hostRef);
-            _hostRef = nil;
+        if (hostRef) {
+            CFRelease(hostRef);
         }
         
         //if an error occurred during resolution
@@ -609,12 +611,6 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
                 self.socket = 0;
             }
             
-            //just to be safe make sure this one is gone
-            if (_hostRef) {
-                CFRelease(_hostRef);
-                _hostRef = nil;
-            }
-            
             //destroy host
             self.hostAddress = nil;
             
@@ -809,12 +805,6 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
     if (self.socket) {
         close(self.socket);
         self.socket = 0;
-    }
-    
-    //clean up host ref to be sure
-    if (_hostRef) {
-        CFRelease(_hostRef);
-        _hostRef = nil;
     }
 }
 
