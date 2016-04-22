@@ -39,6 +39,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
 
 @property (assign, atomic) int                          socket;
 @property (strong, nonatomic) NSData                    *hostAddress;
+@property (strong, nonatomic) NSString                  *hostAddressString;
 @property (assign, nonatomic) uint16_t                  identifier;
 
 @property (assign, atomic, readwrite) BOOL              isPinging;
@@ -249,6 +250,10 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
                     resolved = true;
                     addrPtr = anAddrPtr;
                     self.hostAddress = address;
+                    struct sockaddr_in *sin = (struct sockaddr_in *)anAddrPtr;
+                    char str[INET_ADDRSTRLEN];
+                    inet_ntop(AF_INET, &(sin->sin_addr), str, INET_ADDRSTRLEN);
+                    self.hostAddressString = [[NSString alloc] initWithUTF8String:str];
                     break;
                 }
             }
@@ -369,53 +374,59 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
     
     //process the data we read.
     if (bytesRead > 0) {
-        NSDate *receiveDate = [NSDate date];
-        NSMutableData *packet;
-        
-        packet = [NSMutableData dataWithBytes:buffer length:(NSUInteger) bytesRead];
-        assert(packet);
-        
-        //complete the ping summary
-        const struct ICMPHeader *headerPointer = [[self class] icmpInPacket:packet];
-        NSUInteger seqNo = (NSUInteger)OSSwapBigToHostInt16(headerPointer->sequenceNumber);
-        NSNumber *key = @(seqNo);
-        GBPingSummary *pingSummary = [(GBPingSummary *)self.pendingPings[key] copy];
-        
-        if (pingSummary) {
-            if ([self isValidPingResponsePacket:packet]) {
-                //override the source address (we might have sent to google.com and 172.123.213.192 replied)
-                pingSummary.receiveDate = receiveDate;
-                pingSummary.host = [[self class] sourceAddressInPacket:packet];
-                
-                pingSummary.status = GBPingStatusSuccess;
-                
-                //invalidate the timeouttimer
-                NSTimer *timer = self.timeoutTimers[key];
-                [timer invalidate];
-                [self.timeoutTimers removeObjectForKey:key];
-                
-                
-                if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didReceiveReplyWithSummary:)] ) {
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        //notify delegate
-                        [self.delegate ping:self didReceiveReplyWithSummary:[pingSummary copy]];
-                    });
+        char hoststr[INET_ADDRSTRLEN];
+        struct sockaddr_in *sin = (struct sockaddr_in *)&addr;
+        inet_ntop(AF_INET, &(sin->sin_addr), hoststr, INET_ADDRSTRLEN);
+        NSString *host = [[NSString alloc] initWithUTF8String:hoststr];
+
+        if([host isEqualToString:self.hostAddressString]) { // only make sense where received packet comes from expected source
+            NSDate *receiveDate = [NSDate date];
+            NSMutableData *packet;
+
+            packet = [NSMutableData dataWithBytes:buffer length:(NSUInteger) bytesRead];
+            assert(packet);
+
+            //complete the ping summary
+            const struct ICMPHeader *headerPointer = [[self class] icmpInPacket:packet];
+            NSUInteger seqNo = (NSUInteger)OSSwapBigToHostInt16(headerPointer->sequenceNumber);
+            NSNumber *key = @(seqNo);
+            GBPingSummary *pingSummary = [(GBPingSummary *)self.pendingPings[key] copy];
+
+            if (pingSummary) {
+                if ([self isValidPingResponsePacket:packet]) {
+                    //override the source address (we might have sent to google.com and 172.123.213.192 replied)
+                    pingSummary.receiveDate = receiveDate;
+                    pingSummary.host = [[self class] sourceAddressInPacket:packet];
+
+                    pingSummary.status = GBPingStatusSuccess;
+
+                    //invalidate the timeouttimer
+                    NSTimer *timer = self.timeoutTimers[key];
+                    [timer invalidate];
+                    [self.timeoutTimers removeObjectForKey:key];
+
+
+                    if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didReceiveReplyWithSummary:)] ) {
+                        dispatch_async(dispatch_get_main_queue(), ^{
+                            //notify delegate
+                            [self.delegate ping:self didReceiveReplyWithSummary:[pingSummary copy]];
+                        });
+                    }
                 }
-            }
-            else {
-                pingSummary.status = GBPingStatusFail;
-                
-                if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didReceiveUnexpectedReplyWithSummary:)] ) {
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        [self.delegate ping:self didReceiveUnexpectedReplyWithSummary:[pingSummary copy]];
-                    });
+                else {
+                    pingSummary.status = GBPingStatusFail;
+
+                    if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didReceiveUnexpectedReplyWithSummary:)] ) {
+                        dispatch_async(dispatch_get_main_queue(), ^{
+                            [self.delegate ping:self didReceiveUnexpectedReplyWithSummary:[pingSummary copy]];
+                        });
+                    }
                 }
             }
         }
-        
     }
     else {
-        
+
         //we failed to read the data, so shut everything down.
         if (err == 0) {
             err = EPIPE;
