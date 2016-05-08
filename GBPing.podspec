@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = 'GBPing'
-  s.version      = '1.3.5'
+  s.version      = '1.3.6'
   s.summary      = 'Highly accurate ICMP Ping controller for iOS.'
   s.homepage     = 'https://github.com/lmirosevic/GBPing'
   s.license      = 'Apache License, Version 2.0'
