@@ -632,7 +632,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             //clean up pendingpings
             [self.pendingPings removeAllObjects];
             self.pendingPings = nil;
-            for (NSNumber *key in self.timeoutTimers) {
+            for (NSNumber *key in [self.timeoutTimers copy]) {
                 NSTimer *timer = self.timeoutTimers[key];
                 [timer invalidate];
             }
