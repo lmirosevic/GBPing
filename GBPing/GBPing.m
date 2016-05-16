@@ -56,7 +56,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
 
 @implementation GBPing {
     CFHostRef                                           _hostRef;
-    
+
     NSUInteger                                          _payloadSize;
     NSUInteger                                          _ttl;
     NSTimeInterval                                      _timeout;
@@ -169,38 +169,38 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
         if (self.debug) {
             NSLog(@"GBPing: Can't setup, already setup.");
         }
-        
+
         //notify about error and return
         dispatch_async(dispatch_get_main_queue(), ^{
             callback(NO, nil);
         });
         return;
     }
-    
+
     //error out if no host is set
     if (!self.host) {
         if (self.debug) {
             NSLog(@"GBPing: set host before attempting to start.");
         }
-        
+
         //notify about error and return
         dispatch_async(dispatch_get_main_queue(), ^{
             callback(NO, nil);
         });
         return;
     }
-    
+
     //set up data structs
     self.nextSequenceNumber = 0;
     self.pendingPings = [[NSMutableDictionary alloc] init];
     self.timeoutTimers = [[NSMutableDictionary alloc] init];
-    
+
     dispatch_async(self.setupQueue, ^{
         CFStreamError streamError;
         BOOL success;
-        
+
         _hostRef = CFHostCreateWithName(NULL, (__bridge CFStringRef)self.host);
-        
+
         /*
          * CFHostCreateWithName will return a null result in certain cases.
          * CFHostStartInfoResolution will return YES if _hostRef is null.
@@ -209,13 +209,13 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             success = CFHostStartInfoResolution(_hostRef, kCFHostAddresses, &streamError);
         } else {
             success = NO;
-        }        
-        
+        }
+
         if (!success) {
             //construct an error
             NSDictionary *userInfo;
             NSError *error;
-            
+
             if (streamError.domain == kCFStreamErrorDomainNetDB) {
                 userInfo = [NSDictionary dictionaryWithObjectsAndKeys:
                             [NSNumber numberWithInteger:streamError.error], kCFGetAddrInfoFailureKey,
@@ -226,17 +226,17 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
                 userInfo = nil;
             }
             error = [NSError errorWithDomain:(NSString *)kCFErrorDomainCFNetwork code:kCFHostErrorUnknown userInfo:userInfo];
-            
+
             //clean up so far
             [self stop];
-            
+
             //notify about error and return
             dispatch_async(dispatch_get_main_queue(), ^{
                 callback(NO, error);
             });
             return;
         }
-        
+
         //get the first IPv4 address
         Boolean resolved;
         const struct sockaddr *addrPtr;
@@ -245,7 +245,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             resolved = false;
             for (NSData *address in addresses) {
                 const struct sockaddr *anAddrPtr = (const struct sockaddr *)[address bytes];
-                
+
                 if ([address length] >= sizeof(struct sockaddr) && anAddrPtr->sa_family == AF_INET) {
                     resolved = true;
                     addrPtr = anAddrPtr;
@@ -258,25 +258,25 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
                 }
             }
         }
-        
+
         //we can stop host resolution now
         if (_hostRef) {
             CFRelease(_hostRef);
             _hostRef = nil;
         }
-        
+
         //if an error occurred during resolution
         if (!resolved) {
             //stop
             [self stop];
-            
+
             //notify about error and return
             dispatch_async(dispatch_get_main_queue(), ^{
                 callback(NO, [NSError errorWithDomain:(NSString *)kCFErrorDomainCFNetwork code:kCFHostErrorHostNotFound userInfo:nil]);
             });
             return;
         }
-        
+
         //set up socket
         int err = 0;
         switch (addrPtr->sa_family) {
@@ -296,34 +296,34 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
                 err = EPROTONOSUPPORT;
             } break;
         }
-        
+
         //couldnt setup socket
         if (err) {
             //clean up so far
             [self stop];
-            
+
             //notify about error and close
             dispatch_async(dispatch_get_main_queue(), ^{
                 callback(NO, [NSError errorWithDomain:NSPOSIXErrorDomain code:err userInfo:nil]);
             });
             return;
         }
-        
+
         //set ttl on the socket
         if (self.ttl) {
             u_char ttlForSockOpt = (u_char)self.ttl;
             setsockopt(self.socket, IPPROTO_IP, IP_TTL, &ttlForSockOpt, sizeof(NSUInteger));
         }
-        
+
         //we are ready now
         self.isReady = YES;
-        
+
         //notify that we are ready
         dispatch_async(dispatch_get_main_queue(), ^{
             callback(YES, nil);
         });
     });
-    
+
     self.isStopped = NO;
 }
 
@@ -333,11 +333,11 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
         //go into infinite listenloop on a new thread (listenThread)
         NSThread *listenThread = [[NSThread alloc] initWithTarget:self selector:@selector(listenLoop) object:nil];
         listenThread.name = @"listenThread";
-        
+
         //set up loop that sends packets on a new thread (sendThread)
         NSThread *sendThread = [[NSThread alloc] initWithTarget:self selector:@selector(sendLoop) object:nil];
         sendThread.name = @"sendThread";
-        
+
         //we're pinging now
         self.isPinging = YES;
         [listenThread start];
@@ -360,10 +360,10 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
     ssize_t                 bytesRead;
     void *                  buffer;
     enum { kBufferSize = 65535 };
-    
+
     buffer = malloc(kBufferSize);
     assert(buffer);
-    
+
     //read the data.
     addrLen = sizeof(addr);
     bytesRead = recvfrom(self.socket, buffer, kBufferSize, 0, (struct sockaddr *)&addr, &addrLen);
@@ -371,7 +371,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
     if (bytesRead < 0) {
         err = errno;
     }
-    
+
     //process the data we read.
     if (bytesRead > 0) {
         char hoststr[INET_ADDRSTRLEN];
@@ -431,7 +431,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
         if (err == 0) {
             err = EPIPE;
         }
-        
+
         @synchronized(self) {
             if (!self.isStopped) {
                 if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didFailWithError:)] ) {
@@ -441,11 +441,11 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
                 }
             }
         }
-        
+
         //stop the whole thing
         [self stop];
     }
-    
+
     free(buffer);
 }
 
@@ -453,13 +453,13 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
     @autoreleasepool {
         while (self.isPinging) {
             [self sendPing];
-          
+
             NSTimeInterval runUntil = CFAbsoluteTimeGetCurrent() + self.pingPeriod;
             NSTimeInterval time = 0;
             while (runUntil > time) {
                 NSDate *runUntilDate = [NSDate dateWithTimeIntervalSinceReferenceDate:runUntil];
                 [[NSRunLoop currentRunLoop] runUntilDate:runUntilDate];
-        
+
                 time = CFAbsoluteTimeGetCurrent();
             }
         }
@@ -468,17 +468,17 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
 
 -(void)sendPing {
     if (self.isPinging) {
-      
+
         int err;
         NSMutableData *packet;
         ICMPHeader *icmpPtr;
         ssize_t bytesSent;
-        
+
         // Construct the ping packet.
         NSData *payload = [self generateDataWithLength:(self.payloadSize)];
-        
+
         packet = [NSMutableData dataWithLength:sizeof(*icmpPtr) + [payload length]];
-        
+
         icmpPtr = [packet mutableBytes];
         icmpPtr->type = kICMPTypeEchoRequest;
         icmpPtr->code = 0;
@@ -486,25 +486,25 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
         icmpPtr->identifier     = OSSwapHostToBigInt16(self.identifier);
         icmpPtr->sequenceNumber = OSSwapHostToBigInt16(self.nextSequenceNumber);
         memcpy(&icmpPtr[1], [payload bytes], [payload length]);
-        
+
         // The IP checksum returns a 16-bit number that's already in correct byte order
         // (due to wacky 1's complement maths), so we just put it into the packet as a
         // 16-bit unit.
         icmpPtr->checksum = in_cksum([packet bytes], [packet length]);
-        
+
         // this is our ping summary
         GBPingSummary *newPingSummary = [GBPingSummary new];
-        
+
         // Send the packet.
         if (self.socket == 0) {
             bytesSent = -1;
             err = EBADF;
         }
         else {
-            
+
             //record the send date
             NSDate *sendDate = [NSDate date];
-            
+
             //construct ping summary, as much as it can
             newPingSummary.sequenceNumber = self.nextSequenceNumber;
             newPingSummary.host = self.host;
@@ -512,54 +512,57 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             newPingSummary.ttl = self.ttl;
             newPingSummary.payloadSize = self.payloadSize;
             newPingSummary.status = GBPingStatusPending;
-            
+
             //add it to pending pings
             NSNumber *key = @(self.nextSequenceNumber);
             self.pendingPings[key] = newPingSummary;
-            
+
             //increment sequence number
             self.nextSequenceNumber += 1;
-            
+
             //we create a copy, this one will be passed out to other threads
             GBPingSummary *pingSummaryCopy = [newPingSummary copy];
-            
+
             //we need to clean up our list of pending pings, and we do that after the timeout has elapsed (+ some grace period)
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)((self.timeout + kPendingPingsCleanupGrace) * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
                 //remove the ping from the pending list
                 [self.pendingPings removeObjectForKey:key];
             });
-            
+
             //add a timeout timer
-            dispatch_block_t block = ^{
+            NSTimer *timeoutTimer = [NSTimer scheduledTimerWithTimeInterval:self.timeout
+                                                                     target:[NSBlockOperation blockOperationWithBlock:^{
+
                 newPingSummary.status = GBPingStatusFail;
-                
+
                 //notify about the failure
                 if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didTimeoutWithSummary:)]) {
                     dispatch_async(dispatch_get_main_queue(), ^{
                         [self.delegate ping:self didTimeoutWithSummary:pingSummaryCopy];
                     });
                 }
-                
+
                 //remove the timer itself from the timers list
                 //lm make sure that the timer list doesnt grow and these removals actually work... try logging the count of the timeoutTimers when stopping the pinger
                 [self.timeoutTimers removeObjectForKey:key];
-            };
-            
-            NSTimer *timeoutTimer = [NSTimer scheduledTimerWithTimeInterval:self.timeout target:self selector:@selector(_invokeTimeoutCallback:) userInfo:[(id)block copy] repeats:NO];
+            }]
+                                                                   selector:@selector(main)
+                                                                   userInfo:nil
+                                                                    repeats:NO];
             [[NSRunLoop mainRunLoop] addTimer:timeoutTimer forMode:NSRunLoopCommonModes];
-            
+
             //keep a local ref to it
             if (self.timeoutTimers) {
                 self.timeoutTimers[key] = timeoutTimer;
             }
-            
+
             //notify delegate about this
             if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didSendPingWithSummary:)]) {
                 dispatch_async(dispatch_get_main_queue(), ^{
                     [self.delegate ping:self didSendPingWithSummary:pingSummaryCopy];
                 });
             }
-            
+
             bytesSent = sendto(
                                self.socket,
                                [packet bytes],
@@ -573,9 +576,9 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
                 err = errno;
             }
         }
-        
+
         // This is after the sending
-        
+
         //successfully sent
         if ((bytesSent > 0) && (((NSUInteger) bytesSent) == [packet length])) {
             //noop, we already notified delegate about sending of the ping
@@ -586,17 +589,17 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             if (err == 0) {
                 err = ENOBUFS;          // This is not a hugely descriptor error, alas.
             }
-            
+
             //little log
             if (self.debug) {
                 NSLog(@"GBPing: failed to send packet with error code: %d", err);
             }
-            
+
             //change status
             newPingSummary.status = GBPingStatusFail;
-            
+
             GBPingSummary *pingSummaryCopyAfterFailure = [newPingSummary copy];
-            
+
             //notify delegate
             if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didFailToSendPingWithSummary:error:)]) {
                 dispatch_async(dispatch_get_main_queue(), ^{
@@ -611,24 +614,24 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
     @synchronized(self) {
         if (!self.isStopped) {
             self.isPinging = NO;
-            
+
             self.isReady = NO;
-            
+
             //destroy listenThread by closing socket (listenThread)
             if (self.socket) {
                 close(self.socket);
                 self.socket = 0;
             }
-            
+
             //just to be safe make sure this one is gone
             if (_hostRef) {
                 CFRelease(_hostRef);
                 _hostRef = nil;
             }
-            
+
             //destroy host
             self.hostAddress = nil;
-            
+
             //clean up pendingpings
             [self.pendingPings removeAllObjects];
             self.pendingPings = nil;
@@ -636,14 +639,14 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
                 NSTimer *timer = self.timeoutTimers[key];
                 [timer invalidate];
             }
-            
+
             //clean up timeouttimers
             [self.timeoutTimers removeAllObjects];
             self.timeoutTimers = nil;
-            
+
             //reset seq number
             self.nextSequenceNumber = 0;
-            
+
             self.isStopped = YES;
         }
     }
@@ -662,11 +665,11 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
         uint8_t         uc[2];
     } last;
     uint16_t            answer;
-    
+
     bytesLeft = bufferLen;
     sum = 0;
     cursor = buffer;
-    
+
     /*
      * Our algorithm is simple, using a 32 bit accumulator (sum), we add
      * sequential 16 bit words to it, and at the end, fold back all the
@@ -677,34 +680,34 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
         cursor += 1;
         bytesLeft -= 2;
     }
-    
+
     /* mop up an odd byte, if necessary */
     if (bytesLeft == 1) {
         last.uc[0] = * (const uint8_t *) cursor;
         last.uc[1] = 0;
         sum += last.us;
     }
-    
+
     /* add back carry outs from top 16 bits to low 16 bits */
     sum = (sum >> 16) + (sum & 0xffff);	/* add hi 16 to low 16 */
     sum += (sum >> 16);			/* add carry */
     answer = (uint16_t) ~sum;   /* truncate to 16 bits */
-    
+
     return answer;
 }
 
 +(NSString *)sourceAddressInPacket:(NSData *)packet {
     // Returns the source address of the IP packet
-    
+
     const struct IPHeader   *ipPtr;
     const uint8_t           *sourceAddress;
-    
+
     if ([packet length] >= sizeof(IPHeader)) {
         ipPtr = (const IPHeader *)[packet bytes];
-        
+
         sourceAddress = ipPtr->sourceAddress;//dont need to swap byte order those cuz theyre the smallest atomic unit (1 byte)
         NSString *ipString = [NSString stringWithFormat:@"%d.%d.%d.%d", sourceAddress[0], sourceAddress[1], sourceAddress[2], sourceAddress[3]];
-        
+
         return ipString;
     }
     else return nil;
@@ -716,7 +719,7 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
     NSUInteger              result;
     const struct IPHeader * ipPtr;
     size_t                  ipHeaderLength;
-    
+
     result = NSNotFound;
     if ([packet length] >= (sizeof(IPHeader) + sizeof(ICMPHeader))) {
         ipPtr = (const IPHeader *) [packet bytes];
@@ -735,7 +738,7 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
 {
     const struct ICMPHeader *   result;
     NSUInteger                  icmpHeaderOffset;
-    
+
     result = nil;
     icmpHeaderOffset = [self icmpHeaderOffsetInPacket:packet];
     if (icmpHeaderOffset != NSNotFound) {
@@ -753,18 +756,18 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
     ICMPHeader *        icmpPtr;
     uint16_t            receivedChecksum;
     uint16_t            calculatedChecksum;
-    
+
     result = NO;
-    
+
     icmpHeaderOffset = [[self class] icmpHeaderOffsetInPacket:packet];
     if (icmpHeaderOffset != NSNotFound) {
         icmpPtr = (struct ICMPHeader *) (((uint8_t *)[packet mutableBytes]) + icmpHeaderOffset);
-        
+
         receivedChecksum   = icmpPtr->checksum;
         icmpPtr->checksum  = 0;
         calculatedChecksum = in_cksum(icmpPtr, [packet length] - icmpHeaderOffset);
         icmpPtr->checksum  = receivedChecksum;
-        
+
         if (receivedChecksum == calculatedChecksum) {
             if ( (icmpPtr->type == kICMPTypeEchoReply) && (icmpPtr->code == 0) ) {
                 if ( OSSwapBigToHostInt16(icmpPtr->identifier) == self.identifier ) {
@@ -775,9 +778,9 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
             }
         }
     }
-    
+
     //    NSLog(@"valid: %@, type: %d", _b(result), icmpPtr->type);
-    
+
     return result;
 }
 
@@ -785,16 +788,8 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
     //create a buffer full of 7's of specified length
     char tempBuffer[length];
     memset(tempBuffer, 7, length);
-    
-    return [[NSData alloc] initWithBytes:tempBuffer length:length];
-}
 
-- (void)_invokeTimeoutCallback:(NSTimer *)timer
-{
-    dispatch_block_t callback = timer.userInfo;
-    if (callback) {
-        callback();
-    }
+    return [[NSData alloc] initWithBytes:tempBuffer length:length];
 }
 
 #pragma mark - memory
@@ -805,7 +800,7 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
         self.isStopped = YES;
         self.identifier = arc4random();
     }
-    
+
     return self;
 }
 
@@ -815,13 +810,13 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
     self.timeoutTimers = nil;
     self.pendingPings = nil;
     self.hostAddress = nil;
-    
+
     //clean up socket to be sure
     if (self.socket) {
         close(self.socket);
         self.socket = 0;
     }
-    
+
     //clean up host ref to be sure
     if (_hostRef) {
         CFRelease(_hostRef);
