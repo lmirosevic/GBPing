@@ -530,22 +530,26 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             });
             
             //add a timeout timer
-            dispatch_block_t block = ^{
-                newPingSummary.status = GBPingStatusFail;
-                
-                //notify about the failure
-                if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didTimeoutWithSummary:)]) {
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        [self.delegate ping:self didTimeoutWithSummary:pingSummaryCopy];
-                    });
-                }
-                
-                //remove the timer itself from the timers list
-                //lm make sure that the timer list doesnt grow and these removals actually work... try logging the count of the timeoutTimers when stopping the pinger
-                [self.timeoutTimers removeObjectForKey:key];
-            };
-            
-            NSTimer *timeoutTimer = [NSTimer scheduledTimerWithTimeInterval:self.timeout target:self selector:@selector(_invokeTimeoutCallback:) userInfo:[(id)block copy] repeats:NO];
+            //add a timeout timer
+            NSTimer *timeoutTimer = [NSTimer scheduledTimerWithTimeInterval:self.timeout
+                                                                     target:[NSBlockOperation blockOperationWithBlock:^{
+
+                                                                         newPingSummary.status = GBPingStatusFail;
+
+                                                                         //notify about the failure
+                                                                         if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didTimeoutWithSummary:)]) {
+                                                                             dispatch_async(dispatch_get_main_queue(), ^{
+                                                                                 [self.delegate ping:self didTimeoutWithSummary:pingSummaryCopy];
+                                                                             });
+                                                                         }
+
+                                                                         //remove the timer itself from the timers list
+                                                                         //lm make sure that the timer list doesnt grow and these removals actually work... try logging the count of the timeoutTimers when stopping the pinger
+                                                                         [self.timeoutTimers removeObjectForKey:key];
+                                                                     }]
+                                                                   selector:@selector(main)
+                                                                   userInfo:nil
+                                                                    repeats:NO];
             [[NSRunLoop mainRunLoop] addTimer:timeoutTimer forMode:NSRunLoopCommonModes];
             
             //keep a local ref to it
