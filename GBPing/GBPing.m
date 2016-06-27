@@ -331,7 +331,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
 
 
 -(void)startPinging {
-    if (!self.isPinging) {
+    if (self.isReady && !self.isPinging) {
         //go into infinite listenloop on a new thread (listenThread)
         NSThread *listenThread = [[NSThread alloc] initWithTarget:self selector:@selector(listenLoop) object:nil];
         listenThread.name = @"listenThread";
