@@ -48,8 +48,13 @@ check_compile_time(offsetof(IPHeader, destinationAddress) == 16);
 // ICMP type and code combinations:
 
 enum {
-    kICMPTypeEchoReply   = 0,           // code is always 0
-    kICMPTypeEchoRequest = 8            // code is always 0
+    kICMPv4TypeEchoRequest = 8,
+    kICMPv4TypeEchoReply   = 0
+};
+
+enum {
+    kICMPv6TypeEchoRequest = 128,
+    kICMPv6TypeEchoReply   = 129
 };
 
 // ICMP header structure:

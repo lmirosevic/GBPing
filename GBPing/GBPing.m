@@ -240,7 +240,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             return;
         }
         
-        //get the first IPv4 address
+        //get the first IPv4 or IPv6 address
         Boolean resolved;
         const struct sockaddr *addrPtr;
         NSArray *addresses = (__bridge NSArray *)CFHostGetAddressing(hostRef, &resolved);
@@ -249,13 +249,15 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             for (NSData *address in addresses) {
                 const struct sockaddr *anAddrPtr = (const struct sockaddr *)[address bytes];
                 
-                if ([address length] >= sizeof(struct sockaddr) && anAddrPtr->sa_family == AF_INET) {
+                if ([address length] >= sizeof(struct sockaddr) &&
+                    (anAddrPtr->sa_family == AF_INET || anAddrPtr->sa_family == AF_INET6)) {
+                    
                     resolved = true;
                     addrPtr = anAddrPtr;
                     self.hostAddress = address;
                     struct sockaddr_in *sin = (struct sockaddr_in *)anAddrPtr;
-                    char str[INET_ADDRSTRLEN];
-                    inet_ntop(AF_INET, &(sin->sin_addr), str, INET_ADDRSTRLEN);
+                    char str[INET6_ADDRSTRLEN];
+                    inet_ntop(anAddrPtr->sa_family, &(sin->sin_addr), str, INET6_ADDRSTRLEN);
                     self.hostAddressString = [[NSString alloc] initWithUTF8String:str];
                     break;
                 }
@@ -281,7 +283,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
         
         //set up socket
         int err = 0;
-        switch (addrPtr->sa_family) {
+        switch (self.hostAddressFamily) {
             case AF_INET: {
                 self.socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
                 if (self.socket < 0) {
@@ -289,10 +291,10 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
                 }
             } break;
             case AF_INET6: {
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    callback(NO, nil);
-                });
-                return;
+                self.socket = socket(AF_INET6, SOCK_DGRAM, IPPROTO_ICMPV6);
+                if (self.socket < 0) {
+                    err = errno;
+                }
             } break;
             default: {
                 err = EPROTONOSUPPORT;
@@ -376,9 +378,9 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
     
     //process the data we read.
     if (bytesRead > 0) {
-        char hoststr[INET_ADDRSTRLEN];
+        char hoststr[INET6_ADDRSTRLEN];
         struct sockaddr_in *sin = (struct sockaddr_in *)&addr;
-        inet_ntop(AF_INET, &(sin->sin_addr), hoststr, INET_ADDRSTRLEN);
+        inet_ntop(sin->sin_family, &(sin->sin_addr), hoststr, INET6_ADDRSTRLEN);
         NSString *host = [[NSString alloc] initWithUTF8String:hoststr];
 
         if([host isEqualToString:self.hostAddressString]) { // only make sense where received packet comes from expected source
@@ -389,7 +391,14 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             assert(packet);
 
             //complete the ping summary
-            const struct ICMPHeader *headerPointer = [[self class] icmpInPacket:packet];
+            const struct ICMPHeader *headerPointer;
+            
+            if (sin->sin_family == AF_INET) {
+                headerPointer = [[self class] icmp4InPacket:packet];
+            } else {
+                headerPointer = (const struct ICMPHeader *)[packet bytes];
+            }
+            
             NSUInteger seqNo = (NSUInteger)OSSwapBigToHostInt16(headerPointer->sequenceNumber);
             NSNumber *key = @(seqNo);
             GBPingSummary *pingSummary = [(GBPingSummary *)self.pendingPings[key] copy];
@@ -398,7 +407,10 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
                 if ([self isValidPingResponsePacket:packet]) {
                     //override the source address (we might have sent to google.com and 172.123.213.192 replied)
                     pingSummary.receiveDate = receiveDate;
-                    pingSummary.host = [[self class] sourceAddressInPacket:packet];
+                    // IP can't be read from header for ICMPv6
+                    if (sin->sin_family == AF_INET) {
+                        pingSummary.host = [[self class] sourceAddressInPacket:packet];
+                    }
 
                     pingSummary.status = GBPingStatusSuccess;
 
@@ -472,27 +484,23 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
     if (self.isPinging) {
       
         int err;
-        NSMutableData *packet;
-        ICMPHeader *icmpPtr;
+        NSData *packet;
         ssize_t bytesSent;
         
         // Construct the ping packet.
         NSData *payload = [self generateDataWithLength:(self.payloadSize)];
         
-        packet = [NSMutableData dataWithLength:sizeof(*icmpPtr) + [payload length]];
-        
-        icmpPtr = [packet mutableBytes];
-        icmpPtr->type = kICMPTypeEchoRequest;
-        icmpPtr->code = 0;
-        icmpPtr->checksum = 0;
-        icmpPtr->identifier     = OSSwapHostToBigInt16(self.identifier);
-        icmpPtr->sequenceNumber = OSSwapHostToBigInt16(self.nextSequenceNumber);
-        memcpy(&icmpPtr[1], [payload bytes], [payload length]);
-        
-        // The IP checksum returns a 16-bit number that's already in correct byte order
-        // (due to wacky 1's complement maths), so we just put it into the packet as a
-        // 16-bit unit.
-        icmpPtr->checksum = in_cksum([packet bytes], [packet length]);
+        switch (self.hostAddressFamily) {
+            case AF_INET: {
+                packet = [self pingPacketWithType:kICMPv4TypeEchoRequest payload:payload requiresChecksum:YES];
+            } break;
+            case AF_INET6: {
+                packet = [self pingPacketWithType:kICMPv6TypeEchoRequest payload:payload requiresChecksum:NO];
+            } break;
+            default: {
+                assert(NO);
+            } break;
+        }
         
         // this is our ping summary
         GBPingSummary *newPingSummary = [GBPingSummary new];
@@ -710,7 +718,7 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
     else return nil;
 }
 
-+ (NSUInteger)icmpHeaderOffsetInPacket:(NSData *)packet
++ (NSUInteger)icmp4HeaderOffsetInPacket:(NSData *)packet
 // Returns the offset of the ICMPHeader within an IP packet.
 {
     NSUInteger              result;
@@ -730,14 +738,14 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
     return result;
 }
 
-+ (const struct ICMPHeader *)icmpInPacket:(NSData *)packet
++ (const struct ICMPHeader *)icmp4InPacket:(NSData *)packet
 // See comment in header.
 {
     const struct ICMPHeader *   result;
     NSUInteger                  icmpHeaderOffset;
     
     result = nil;
-    icmpHeaderOffset = [self icmpHeaderOffsetInPacket:packet];
+    icmpHeaderOffset = [self icmp4HeaderOffsetInPacket:packet];
     if (icmpHeaderOffset != NSNotFound) {
         result = (const struct ICMPHeader *) (((const uint8_t *)[packet bytes]) + icmpHeaderOffset);
     }
@@ -745,6 +753,25 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
 }
 
 - (BOOL)isValidPingResponsePacket:(NSMutableData *)packet
+{
+    BOOL result;
+    
+    switch (self.hostAddressFamily) {
+        case AF_INET: {
+            result = [self isValidPing4ResponsePacket:packet];
+        } break;
+        case AF_INET6: {
+            result = [self isValidPing6ResponsePacket:packet];
+        } break;
+        default: {
+            assert(NO);
+            result = NO;
+        } break;
+    }
+    return result;
+}
+
+- (BOOL)isValidPing4ResponsePacket:(NSMutableData *)packet
 // Returns true if the packet looks like a valid ping response packet destined
 // for us.
 {
@@ -756,7 +783,7 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
     
     result = NO;
     
-    icmpHeaderOffset = [[self class] icmpHeaderOffsetInPacket:packet];
+    icmpHeaderOffset = [[self class] icmp4HeaderOffsetInPacket:packet];
     if (icmpHeaderOffset != NSNotFound) {
         icmpPtr = (struct ICMPHeader *) (((uint8_t *)[packet mutableBytes]) + icmpHeaderOffset);
         
@@ -766,7 +793,7 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
         icmpPtr->checksum  = receivedChecksum;
         
         if (receivedChecksum == calculatedChecksum) {
-            if ( (icmpPtr->type == kICMPTypeEchoReply) && (icmpPtr->code == 0) ) {
+            if ( (icmpPtr->type == kICMPv4TypeEchoReply) && (icmpPtr->code == 0) ) {
                 if ( OSSwapBigToHostInt16(icmpPtr->identifier) == self.identifier ) {
                     if ( OSSwapBigToHostInt16(icmpPtr->sequenceNumber) < self.nextSequenceNumber ) {
                         result = YES;
@@ -777,6 +804,31 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
     }
     
     //    NSLog(@"valid: %@, type: %d", _b(result), icmpPtr->type);
+    
+    return result;
+}
+
+- (BOOL)isValidPing6ResponsePacket:(NSMutableData *)packet
+// Returns true if the IPv6 packet looks like a valid ping response packet destined
+// for us.
+{
+    BOOL                      result;
+    const ICMPHeader *        icmpPtr;
+    
+    result = NO;
+    
+    if (packet.length >= sizeof(*icmpPtr)) {
+        icmpPtr = packet.bytes;
+        
+        if ( (icmpPtr->type == kICMPv6TypeEchoReply) && (icmpPtr->code == 0) ) {
+            if ( OSSwapBigToHostInt16(icmpPtr->identifier) == self.identifier ) {
+                if ( OSSwapBigToHostInt16(icmpPtr->sequenceNumber) < self.nextSequenceNumber ) {
+                    result = YES;
+                }
+            }
+        }
+
+    }
     
     return result;
 }
@@ -795,6 +847,41 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
     if (callback) {
         callback();
     }
+}
+
+- (NSData *)pingPacketWithType:(uint8_t)type payload:(NSData *)payload requiresChecksum:(BOOL)requiresChecksum {
+    NSMutableData *         packet;
+    ICMPHeader *            icmpPtr;
+    
+    packet = [NSMutableData dataWithLength:sizeof(*icmpPtr) + payload.length];
+    assert(packet != nil);
+    
+    icmpPtr = packet.mutableBytes;
+    icmpPtr->type = type;
+    icmpPtr->code = 0;
+    icmpPtr->checksum = 0;
+    icmpPtr->identifier     = OSSwapHostToBigInt16(self.identifier);
+    icmpPtr->sequenceNumber = OSSwapHostToBigInt16(self.nextSequenceNumber);
+    memcpy(&icmpPtr[1], [payload bytes], [payload length]);
+    
+    if (requiresChecksum) {
+        // The IP checksum routine returns a 16-bit number that's already in correct byte order
+        // (due to wacky 1's complement maths), so we just put it into the packet as a 16-bit unit.
+        
+        icmpPtr->checksum = in_cksum(packet.bytes, packet.length);
+    }
+    
+    return packet;
+}
+
+- (sa_family_t)hostAddressFamily {
+    sa_family_t     result;
+    
+    result = AF_UNSPEC;
+    if ( (self.hostAddress != nil) && (self.hostAddress.length >= sizeof(struct sockaddr)) ) {
+        result = ((const struct sockaddr *) self.hostAddress.bytes)->sa_family;
+    }
+    return result;
 }
 
 #pragma mark - memory
