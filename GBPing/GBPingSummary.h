@@ -19,9 +19,9 @@ typedef enum {
 @property (assign, nonatomic) NSUInteger        sequenceNumber;
 @property (assign, nonatomic) NSUInteger        payloadSize;
 @property (assign, nonatomic) NSUInteger        ttl;
-@property (strong, nonatomic) NSString          *host;
-@property (strong, nonatomic) NSDate            *sendDate;
-@property (strong, nonatomic) NSDate            *receiveDate;
+@property (strong, nonatomic, nullable) NSString          *host;
+@property (strong, nonatomic, nullable) NSDate            *sendDate;
+@property (strong, nonatomic, nullable) NSDate            *receiveDate;
 @property (assign, nonatomic) NSTimeInterval    rtt;
 @property (assign, nonatomic) GBPingStatus      status;
 
