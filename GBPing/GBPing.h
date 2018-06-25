@@ -13,13 +13,15 @@
 @class GBPingSummary;
 @protocol GBPingDelegate;
 
-typedef void(^StartupCallback)(BOOL success, NSError *error);
+NS_ASSUME_NONNULL_BEGIN
+
+typedef void(^StartupCallback)(BOOL success, NSError * _Nullable error);
 
 @interface GBPing : NSObject
 
-@property (weak, nonatomic) id<GBPingDelegate>      delegate;
+@property (weak, nonatomic, nullable) id<GBPingDelegate>      delegate;
 
-@property (copy, nonatomic) NSString                *host;
+@property (copy, nonatomic, nullable) NSString                *host;
 @property (assign, atomic) NSTimeInterval           pingPeriod;
 @property (assign, atomic) NSTimeInterval           timeout;
 @property (assign, atomic) NSUInteger               payloadSize;
@@ -48,3 +50,5 @@ typedef void(^StartupCallback)(BOOL success, NSError *error);
 -(void)ping:(GBPing *)pinger didReceiveUnexpectedReplyWithSummary:(GBPingSummary *)summary;
 
 @end
+
+NS_ASSUME_NONNULL_END

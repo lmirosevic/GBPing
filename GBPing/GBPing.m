@@ -214,7 +214,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             NSDictionary *userInfo;
             NSError *error;
             
-            if (streamError.domain == kCFStreamErrorDomainNetDB) {
+            if (hostRef && streamError.domain == kCFStreamErrorDomainNetDB) {
                 userInfo = [NSDictionary dictionaryWithObjectsAndKeys:
                             [NSNumber numberWithInteger:streamError.error], kCFGetAddrInfoFailureKey,
                             nil
@@ -242,7 +242,6 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
         
         //get the first IPv4 or IPv6 address
         Boolean resolved;
-        const struct sockaddr *addrPtr;
         NSArray *addresses = (__bridge NSArray *)CFHostGetAddressing(hostRef, &resolved);
         if (resolved && (addresses != nil)) {
             resolved = false;
@@ -253,7 +252,6 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
                     (anAddrPtr->sa_family == AF_INET || anAddrPtr->sa_family == AF_INET6)) {
                     
                     resolved = true;
-                    addrPtr = anAddrPtr;
                     self.hostAddress = address;
                     struct sockaddr_in *sin = (struct sockaddr_in *)anAddrPtr;
                     char str[INET6_ADDRSTRLEN];
