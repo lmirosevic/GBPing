@@ -502,9 +502,10 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             case AF_INET6: {
                 packet = [self pingPacketWithType:kICMPv6TypeEchoRequest payload:payload requiresChecksum:NO];
             } break;
-            default: {
-                assert(NO);
-            } break;
+            default:
+                bytesSent = -1;
+                err = EINVAL;
+                return;
         }
         
         // this is our ping summary
@@ -769,7 +770,6 @@ static uint16_t in_cksum(const void *buffer, size_t bufferLen)
             result = [self isValidPing6ResponsePacket:packet];
         } break;
         default: {
-            assert(NO);
             result = NO;
         } break;
     }
