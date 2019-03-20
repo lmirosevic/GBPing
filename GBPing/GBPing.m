@@ -558,7 +558,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             NSTimer *timeoutTimer = [NSTimer scheduledTimerWithTimeInterval:self.timeout
                                                                      target:[NSBlockOperation blockOperationWithBlock:^{
 
-                                                                         newPingSummary.status = GBPingStatusFail;
+                                                                         pingSummaryCopy.status = GBPingStatusFail;
 
                                                                          //notify about the failure
                                                                          if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didTimeoutWithSummary:)]) {
